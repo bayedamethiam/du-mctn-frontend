@@ -20,7 +20,12 @@ export const statusConf = {
   critique:  { bg: 'rgba(239,68,68,0.15)',   color: '#ef4444', label: 'Critique'   },
   haute:     { bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b', label: 'Haute'      },
   moyenne:   { bg: 'rgba(6,182,212,0.15)',   color: '#06b6d4', label: 'Moyenne'    },
-  terminee:  { bg: 'rgba(16,185,129,0.15)',  color: '#10b981', label: 'Terminée'   },
+  terminee:      { bg: 'rgba(16,185,129,0.15)',  color: '#10b981', label: 'Terminée'        },
+  structuration: { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', label: 'En structuration' },
+  maturation:    { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6', label: 'Maturation'       },
+  execution:     { bg: 'rgba(6,182,212,0.15)',  color: '#06b6d4', label: 'En exécution'     },
+  cloture:       { bg: 'rgba(107,114,128,0.15)',color: '#6b7280', label: 'Clôturé'          },
+  exploitation:  { bg: 'rgba(16,185,129,0.15)', color: '#10b981', label: 'Exploitation'     },
 };
 
 export const scoreColor = s => s >= 75 ? '#10b981' : s >= 50 ? '#06b6d4' : s >= 30 ? '#f59e0b' : '#ef4444';
