@@ -28,17 +28,13 @@ jobs:
           npm ci
           npm run build
 
-      # ── 2. Setup SSH ────────────────────────────────────────────────
+      # ── 2. Setup SSH (sans ssh-agent, clé directe via -i) ───────────
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/deploy_key
-          ssh-keyscan -T 30 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts || true
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
+          ssh-keyscan -T 30 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       # ── 3. Whitelist IP GitHub runner ───────────────────────────────
       - name: Get runner public IP
@@ -86,5 +82,5 @@ jobs:
           BASE="https://${{ secrets.SSH_USER }}:${{ secrets.CPANEL_PASSWORD_ENCODED }}@${{ secrets.SSH_HOST }}:2083"
           curl -skX POST \
             -d "whitelist[address]=${{ steps.ip.outputs.ipv4 }}" \
-            "$BASE/frontend/o2switch/o2switch-ssh-whitelist/index.live.php?r=remove" | true
+            "$BASE/frontend/o2switch/o2switch-ssh-whitelist/index.live.php?r=remove" || true
           echo "IP retirée du whitelist"
