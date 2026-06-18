@@ -10,6 +10,9 @@ jobs:
     name: Build & Deploy Frontend
     runs-on: ubuntu-latest
     environment: prod
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
 
     steps:
       - uses: actions/checkout@v4
@@ -28,13 +31,18 @@ jobs:
           npm ci
           npm run build
 
-      # ── 2. Setup SSH (sans ssh-agent, clé directe via -i) ───────────
+      # ── 2. Setup SSH (retire la passphrase puis charge dans l'agent) ─
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -T 30 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keygen -p -P "${{ secrets.SSH_PASSPHRASE }}" -N "" -f ~/.ssh/deploy_key
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/deploy_key
+          ssh-keyscan -T 30 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts || true
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
 
       # ── 3. Whitelist IP GitHub runner ───────────────────────────────
       - name: Get runner public IP
@@ -60,20 +68,26 @@ jobs:
             sleep 20
             echo "Tentative $i/9 — $(date '+%H:%M:%S')"
             if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
-                   -i ~/.ssh/deploy_key \
                    ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} echo "✅ SSH OK"; then
               echo "Accessible après $((i * 20))s"
               break
             fi
-            [ $i -eq 9 ] && echo "❌ SSH inaccessible après 3min" && exit 1
+            if [ $i -eq 9 ]; then
+              echo "❌ SSH inaccessible après 3 minutes"
+              exit 1
+            fi
           done
 
       # ── 4. Déployer dist/ via rsync ──────────────────────────────────
       - name: Deploy dist/ to O2switch
         run: |
           rsync -rlgoDzv --delete-after \
-            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i ~/.ssh/deploy_key" \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
             dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/du.thba7054.odns.fr/
+
+          rsync -zv \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
+            public/.htaccess ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/du.thba7054.odns.fr/.htaccess
 
       # ── 5. Retirer l'IP du whitelist ─────────────────────────────────
       - name: Remove runner IP from whitelist
