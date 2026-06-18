@@ -1,0 +1,90 @@
+name: Deploy Frontend → O2switch
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── 1. Build Vite ───────────────────────────────────────────────
+      - name: Build frontend
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          : "${VITE_API_URL:?Secret VITE_API_URL non configuré}"
+          npm ci
+          npm run build
+
+      # ── 2. Setup SSH ────────────────────────────────────────────────
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -p -P "${{ secrets.SSH_PASSPHRASE }}" -N "" -f ~/.ssh/deploy_key 2>/dev/null || true
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/deploy_key
+          ssh-keyscan -T 30 -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts || true
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
+
+      # ── 3. Whitelist IP GitHub runner ───────────────────────────────
+      - name: Get runner public IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Whitelist runner IP
+        run: |
+          BASE="https://${{ secrets.SSH_USER }}:${{ secrets.CPANEL_PASSWORD_ENCODED }}@${{ secrets.SSH_HOST }}:2083"
+          RUNNER_IP="${{ steps.ip.outputs.ipv4 }}"
+          echo "Ajout IP $RUNNER_IP..."
+          RESPONSE=$(curl -skX POST \
+            -d "whitelist[address]=$RUNNER_IP" \
+            -d "whitelist[port]=22" \
+            "$BASE/frontend/o2switch/o2switch-ssh-whitelist/index.live.php?r=add")
+          if echo "$RESPONSE" | grep -q "DOCTYPE\|login_form\|Identifiant cPanel"; then
+            echo "❌ Authentification cPanel échouée"
+            exit 1
+          fi
+          echo "Réponse: $RESPONSE"
+          echo "Attente propagation firewall..."
+          for i in $(seq 1 9); do
+            sleep 20
+            echo "Tentative $i/9 — $(date '+%H:%M:%S')"
+            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+                   -i ~/.ssh/deploy_key \
+                   ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} echo "✅ SSH OK"; then
+              echo "Accessible après $((i * 20))s"
+              break
+            fi
+            [ $i -eq 9 ] && echo "❌ SSH inaccessible après 3min" && exit 1
+          done
+
+      # ── 4. Déployer dist/ via rsync ──────────────────────────────────
+      - name: Deploy dist/ to O2switch
+        run: |
+          rsync -rlgoDzv --delete-after \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i ~/.ssh/deploy_key" \
+            dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/du.thba7054.odns.fr/
+
+      # ── 5. Retirer l'IP du whitelist ─────────────────────────────────
+      - name: Remove runner IP from whitelist
+        if: always()
+        run: |
+          BASE="https://${{ secrets.SSH_USER }}:${{ secrets.CPANEL_PASSWORD_ENCODED }}@${{ secrets.SSH_HOST }}:2083"
+          curl -skX POST \
+            -d "whitelist[address]=${{ steps.ip.outputs.ipv4 }}" \
+            "$BASE/frontend/o2switch/o2switch-ssh-whitelist/index.live.php?r=remove" | true
+          echo "IP retirée du whitelist"
