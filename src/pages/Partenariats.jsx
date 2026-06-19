@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronDown, ChevronUp, Building, Mail, Calendar, Upload, File, X, Paperclip, Plus, Pencil, Trash2 } from 'lucide-react';
-import { partnershipsApi } from '../api.js';
+import { partnershipsApi, programsApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Btn, Spinner, ErrorBanner, Modal, Input, Select, Textarea, EmptyState } from '../components/UI.jsx';
 import { T } from '../theme.js';
@@ -16,7 +16,7 @@ const TYPES = [
 ];
 const FT = { pdf:{color:'#ef4444',label:'PDF'}, word:{color:'#3b82f6',label:'Word'}, excel:{color:'#10b981',label:'Excel'}, default:{color:T.textDim,label:'Doc'} };
 
-const EMPTY = { name:'', type:'bailleur', country:'', status:'actif', amount:'', contact:'', email:'', description:'', start_date:'', end_date:'', projects:'' };
+const EMPTY = { name:'', type:'bailleur', country:'', status:'actif', amount:'', contact:'', email:'', description:'', start_date:'', end_date:'', projects:[] };
 
 const Field = ({ label, children }) => (
   <div>
@@ -36,21 +36,32 @@ export default function Partenariats() {
   const [editing, setEditing]   = useState(null);
   const [form, setForm]         = useState(EMPTY);
   const [saving, setSaving]     = useState(false);
+  const [allProjects, setAllProjects] = useState([]);
   const fileRefs = useRef({});
 
   const load = useCallback(() => {
-    partnershipsApi.list().then(setItems).catch(e => setError(e.message)).finally(() => setLoading(false));
+    Promise.all([partnershipsApi.list(), programsApi.allProjects()])
+      .then(([parts, projs]) => { setItems(parts); setAllProjects(projs); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const toggleProject = id => setForm(prev => ({
+    ...prev,
+    projects: prev.projects.includes(String(id))
+      ? prev.projects.filter(x => x !== String(id))
+      : [...prev.projects, String(id)],
+  }));
 
   const filtered = typeF === 'all' ? items : items.filter(p => p.type === typeF);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal(true); };
   const openEdit   = (p, e) => {
     e.stopPropagation();
-    const projects = Array.isArray(p.projects) ? p.projects : JSON.parse(p.projects || '[]');
+    const raw = Array.isArray(p.projects) ? p.projects : JSON.parse(p.projects || '[]');
     setEditing(p.id);
-    setForm({ name:p.name, type:p.type, country:p.country||'', status:p.status, amount:p.amount||'', contact:p.contact||'', email:p.email||'', description:p.description||'', start_date:p.start_date||'', end_date:p.end_date||'', projects:projects.join(', ') });
+    setForm({ name:p.name, type:p.type, country:p.country||'', status:p.status, amount:p.amount||'', contact:p.contact||'', email:p.email||'', description:p.description||'', start_date:p.start_date||'', end_date:p.end_date||'', projects: raw.map(String) });
     setModal(true);
   };
 
@@ -58,7 +69,7 @@ export default function Partenariats() {
     if (!form.name || !form.type) return setError('Nom et type requis');
     setSaving(true);
     try {
-      const payload = { ...form, projects: JSON.stringify(form.projects.split(',').map(s=>s.trim()).filter(Boolean)) };
+      const payload = { ...form, projects: JSON.stringify(form.projects) };
       if (editing) {
         const updated = await partnershipsApi.update(editing, payload);
         setItems(prev => prev.map(p => p.id === editing ? { ...p, ...updated } : p));
@@ -144,10 +155,21 @@ export default function Partenariats() {
                             <span style={{ background:`${tc.color}22`, color:tc.color, fontSize:10, fontWeight:700, letterSpacing:1, textTransform:'uppercase', padding:'2px 8px', borderRadius:4 }}>{tc.label}</span>
                             <Badge status={p.status}/>
                           </div>
-                          <div style={{ display:'flex', gap:16, marginTop:4, flexWrap:'wrap' }}>
+                          <div style={{ display:'flex', gap:16, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
                             <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted }}>{p.country}</span>
                             <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.teal, fontWeight:600 }}>{p.amount}</span>
-                            <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textDim }}>{projects.join(' · ')}</span>
+                            {projects.length > 0 && (
+                              <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                                {projects.map(id => {
+                                  const proj = allProjects.find(x => String(x.id) === String(id));
+                                  return proj ? (
+                                    <span key={id} style={{ fontSize:10, background:`${proj.program_color||T.teal}18`, color:proj.program_color||T.teal, fontFamily:'DM Sans', fontWeight:600, padding:'1px 7px', borderRadius:4 }}>
+                                      {proj.name}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -249,7 +271,33 @@ export default function Partenariats() {
             <Field label="Date début"><Input value={form.start_date} onChange={v=>f('start_date',v)} type="date"/></Field>
             <Field label="Date fin"><Input value={form.end_date} onChange={v=>f('end_date',v)} type="date"/></Field>
           </div>
-          <Field label="Projets associés (séparés par virgule)"><Input value={form.projects} onChange={v=>f('projects',v)} placeholder="PAENS, e-ID, Goin Digital"/></Field>
+          <Field label={`Projets NDT associés ${form.projects.length > 0 ? `(${form.projects.length} sélectionné${form.projects.length > 1 ? 's' : ''})` : ''}`}>
+            {allProjects.length === 0
+              ? <div style={{ fontFamily:'DM Sans', fontSize:12, color:T.textDim, padding:'8px 0' }}>Aucun projet disponible</div>
+              : (() => {
+                  const byProg = allProjects.reduce((acc, p) => { const k = p.program_name || '—'; (acc[k] = acc[k] || { color: p.program_color, projs: [] }).projs.push(p); return acc; }, {});
+                  return (
+                    <div style={{ maxHeight:180, overflowY:'auto', border:`1px solid ${T.border}`, borderRadius:8, padding:'8px 0' }}>
+                      {Object.entries(byProg).map(([prog, { color, projs }]) => (
+                        <div key={prog}>
+                          <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color, letterSpacing:1, textTransform:'uppercase', padding:'6px 12px 3px' }}>{prog}</div>
+                          {projs.map(p => {
+                            const checked = form.projects.includes(String(p.id));
+                            return (
+                              <label key={p.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 12px', cursor:'pointer', background: checked ? `${color}10` : 'transparent' }}>
+                                <input type="checkbox" checked={checked} onChange={() => toggleProject(p.id)}
+                                  style={{ accentColor: color, width:13, height:13, cursor:'pointer', flexShrink:0 }} />
+                                <span style={{ fontFamily:'DM Sans', fontSize:12, color: checked ? T.text : T.textMuted }}>{p.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()
+            }
+          </Field>
           <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:8 }}>
             <Btn onClick={() => setModal(false)} variant="ghost" color={T.textMuted}>Annuler</Btn>
             <Btn onClick={handleSave} disabled={saving}>{saving ? <Spinner size={14} color="#fff"/> : null}{editing ? 'Mettre à jour' : 'Créer'}</Btn>

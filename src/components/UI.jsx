@@ -39,11 +39,36 @@ export const Btn = ({ children, onClick, color = T.teal, variant = 'solid', size
   return <button onClick={onClick} disabled={disabled} style={{ ...base, background: `${color}15`, color }}>{children}</button>;
 };
 
+/* Inject option styles once (native dropdown background) */
+if (typeof document !== 'undefined' && !document.getElementById('du-select-style')) {
+  const s = document.createElement('style');
+  s.id = 'du-select-style';
+  s.textContent = `
+    select option { background: #0d1b30; color: #ffffff; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+    select option:disabled { color: rgba(255,255,255,0.38); }
+    select:focus { border-color: rgba(6,182,212,0.6) !important; box-shadow: 0 0 0 3px rgba(6,182,212,0.12); }
+  `;
+  document.head.appendChild(s);
+}
+
 export const Select = ({ value, onChange, children, style = {} }) => (
-  <select value={value} onChange={e => onChange(e.target.value)}
-    style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none', cursor: 'pointer', ...style }}>
-    {children}
-  </select>
+  <div style={{ position: 'relative', width: '100%', ...style }}>
+    <select value={value} onChange={e => onChange(e.target.value)}
+      style={{
+        width: '100%', appearance: 'none', WebkitAppearance: 'none',
+        background: '#0d1b30', border: `1px solid ${T.border}`, borderRadius: 8,
+        padding: '10px 36px 10px 12px', color: value === '' ? T.textDim : T.text,
+        fontSize: 13, fontFamily: 'DM Sans', outline: 'none', cursor: 'pointer',
+        lineHeight: '1.5', transition: 'border-color .2s, box-shadow .2s',
+      }}>
+      {children}
+    </select>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textDim }}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  </div>
 );
 
 export const Textarea = ({ value, onChange, placeholder, rows = 3, style = {} }) => (

@@ -57,11 +57,22 @@ export const dashboardApi = {
   alerts: () => api.get('/dashboard/alerts'),
 };
 
+// Axes
+export const axesApi = {
+  list:   ()        => api.get('/axes'),
+  create: d         => api.post('/axes', d),
+  update: (id, d)   => api.put(`/axes/${id}`, d),
+  delete: id        => api.delete(`/axes/${id}`),
+};
+
 // Programs
 export const programsApi = {
   list:          ()         => api.get('/programs'),
   get:           id         => api.get(`/programs/${id}`),
+  create:        d          => api.post('/programs', d),
   update:        (id, d)    => api.put(`/programs/${id}`, d),
+  delete:        id         => api.delete(`/programs/${id}`),
+  allProjects:   ()         => api.get('/programs/all-projects'),
   listProjects:  id         => api.get(`/programs/${id}/projects`),
   createProject: (id, d)    => api.post(`/programs/${id}/projects`, d),
   updateProject: (pid, d)   => api.put(`/programs/projects/${pid}`, d),
@@ -134,6 +145,31 @@ export const instancesApi = {
   createContribution: (id, d)       => api.post(`/instances/${id}/contributions`, d),
   updateContribution: (id, cid, d)  => api.put(`/instances/${id}/contributions/${cid}`, d),
   deleteContribution: (id, cid)     => api.delete(`/instances/${id}/contributions/${cid}`),
+};
+
+// Project meetings
+export const projectMeetingsApi = {
+  all:    ()         => api.get('/project-meetings/all'),
+  list:   projectId  => api.get(`/project-meetings/${projectId}`),
+  create: (pid, d)   => api.post(`/project-meetings/${pid}`, d),
+  update: (id, d)    => api.put(`/project-meetings/entry/${id}`, d),
+  delete: id         => api.delete(`/project-meetings/entry/${id}`),
+};
+
+// Événements internationaux / nationaux / régionaux
+export const intlEventsApi = {
+  list:   ()        => api.get('/intl-events'),
+  create: d         => api.post('/intl-events', d),
+  update: (id, d)   => api.put(`/intl-events/${id}`, d),
+  delete: id        => api.delete(`/intl-events/${id}`),
+};
+
+// Workflow templates
+export const workflowTemplatesApi = {
+  list:   ()        => api.get('/workflow-templates'),
+  create: d         => api.post('/workflow-templates', d),
+  update: (id, d)   => api.put(`/workflow-templates/${id}`, d),
+  delete: id        => api.delete(`/workflow-templates/${id}`),
 };
 
 // Équipe

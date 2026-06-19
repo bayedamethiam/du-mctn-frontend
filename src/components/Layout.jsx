@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, Globe, Zap, AlertCircle, LogOut, ChevronDown } from 'lucide-react';
+import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, Globe, Zap, AlertCircle, LogOut, ChevronDown, CalendarDays } from 'lucide-react';
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -12,6 +12,7 @@ const NAV = [
   { id: 'se',           icon: BarChart2,     label: 'Suivi-Évaluation' },
   { id: 'instances',    icon: Globe,         label: 'Représentation int.' },
   { id: 'equipe',       icon: Users,         label: 'Équipe & DU' },
+  { id: 'calendrier',  icon: CalendarDays,  label: 'Calendrier' },
 ];
 
 export default function Layout({ view, setView, alerts, children }) {

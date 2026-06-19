@@ -10,6 +10,7 @@ import Audiences    from './pages/Audiences.jsx';
 import SuiviEval    from './pages/SuiviEval.jsx';
 import Instances    from './pages/Instances.jsx';
 import Equipe       from './pages/Equipe.jsx';
+import Calendrier   from './pages/Calendrier.jsx';
 import { dashboardApi } from './api.js';
 import { Spinner } from './components/UI.jsx';
 import { T } from './theme.js';
@@ -19,6 +20,7 @@ const VIEWS = {
   diligences: Diligences, partenariats: Partenariats,
   audiences: Audiences, se: SuiviEval,
   instances: Instances, equipe: Equipe,
+  calendrier: Calendrier,
 };
 
 export default function App() {

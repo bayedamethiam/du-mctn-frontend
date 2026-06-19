@@ -12,6 +12,15 @@ const LEVELS = [
   { v:'3', l:'Niveau 3 — Chargé de mission' },
   { v:'4', l:'Niveau 4 — Assistant' },
 ];
+const POLES = [
+  { v:'Direction',         color:'#06b6d4' },
+  { v:'Projets NDT',       color:'#8b5cf6' },
+  { v:'Suivi-Évaluation',  color:'#10b981' },
+  { v:'DPI',               color:'#f59e0b' },
+  { v:'e-Gov',             color:'#3b82f6' },
+  { v:'Services',          color:'#ec4899' },
+  { v:'Autre',             color:'#6b7280' },
+];
 const EMPTY = { name:'', role:'', level:'3', department:'', initials:'', color:'#06b6d4', expertise:'', email:'', phone:'', bio:'' };
 
 export default function Equipe() {
@@ -67,6 +76,8 @@ export default function Equipe() {
   };
 
   const byLevel = members.reduce((acc, m) => { (acc[m.level] = acc[m.level] || []).push(m); return acc; }, {});
+  const byPole  = members.reduce((acc, m) => { const k = m.department || 'Non assigné'; (acc[k] = acc[k] || []).push(m); return acc; }, {});
+  const poleCount = Object.keys(byPole).length;
 
   const MemberCard = ({ member, featured = false }) => {
     const isSel     = selected === member.id;
@@ -116,12 +127,12 @@ export default function Equipe() {
     <div className="fade-in">
       <HeroBanner eyebrow="Unité de Livraison · MCTN" title="Équipe & Organisation"
         subtitle="Ministère de la Communication, des Télécommunications et du Numérique"
-        stats={[{ value:members.length, label:'Membres' }, { value:'4', label:'Niveaux' }, { value:'7', label:'Départements', color:'#10b981' }]} />
+        stats={[{ value:members.length, label:'Membres' }, { value:'4', label:'Niveaux' }, { value:poleCount, label:'Pôles actifs', color:'#10b981' }]} />
       <div style={{ padding:28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
           <div style={{ display:'flex', background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}` }}>
-            {[['hierarchy','Hiérarchie'],['grid','Grille']].map(([v,l]) => (
+            {[['hierarchy','Hiérarchie'],['pole','Pôles'],['grid','Grille']].map(([v,l]) => (
               <button key={v} onClick={() => setViewMode(v)} style={{ fontFamily:'DM Sans', fontSize:12, fontWeight:500, padding:'7px 16px', borderRadius:6, border:'none', background:viewMode===v?T.teal:'transparent', color:viewMode===v?'#fff':T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>{l}</button>
             ))}
           </div>
@@ -164,6 +175,27 @@ export default function Equipe() {
                 </div>
               </>}
             </div>
+          : viewMode === 'pole'
+          ? <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+              {Object.entries(byPole).sort(([a],[b]) => {
+                const ai = POLES.findIndex(p => p.v === a); const bi = POLES.findIndex(p => p.v === b);
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+              }).map(([pole, mems]) => {
+                const pColor = POLES.find(p => p.v === pole)?.color || '#6b7280';
+                return (
+                  <div key={pole}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, paddingBottom:10, borderBottom:`1px solid ${T.border}` }}>
+                      <div style={{ width:3, height:20, background:pColor, borderRadius:2 }}/>
+                      <div style={{ fontFamily:'EB Garamond', fontSize:17, color:pColor, fontWeight:500 }}>{pole}</div>
+                      <div style={{ fontSize:11, color:T.textDim, fontFamily:'DM Sans', marginLeft:'auto' }}>{mems.length} membre{mems.length > 1 ? 's' : ''}</div>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+                      {mems.map(m => <MemberCard key={m.id} member={m}/>)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           : <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
               {members.map(m => <MemberCard key={m.id} member={m}/>)}
             </div>
@@ -190,8 +222,11 @@ export default function Equipe() {
               </Select>
             </div>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Département</label>
-              <Input value={form.department} onChange={f('department')} placeholder="Ex: S&E, DPI, e-Gov..."/>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Pôle</label>
+              <Select value={form.department} onChange={f('department')}>
+                <option value="">— Sélectionner un pôle —</option>
+                {POLES.map(p => <option key={p.v} value={p.v}>{p.v}</option>)}
+              </Select>
             </div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>

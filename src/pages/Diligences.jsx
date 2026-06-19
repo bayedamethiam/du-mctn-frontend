@@ -9,6 +9,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 const EMPTY = { title: '', source: '', deadline: '', responsible: '', priority: 'moyenne', type: 'Note', status: 'planifie' };
 const TYPES = ['Note', 'Rapport', 'Présentation', 'Compte rendu', 'Dashboard', 'Lettre'];
 
+const isLate = d => {
+  if (!d.deadline || d.status === 'fait') return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(d.deadline) < today;
+};
+
 export default function Diligences() {
   const { user } = useAuth();
   const [items, setItems]       = useState([]);
@@ -30,7 +36,7 @@ export default function Diligences() {
   const filtered = items.filter(d => {
     const q = search.toLowerCase();
     const matchS = d.title.toLowerCase().includes(q) || d.source.toLowerCase().includes(q) || (d.responsible || '').toLowerCase().includes(q);
-    const matchF = filterSt === 'all' || d.status === filterSt;
+    const matchF = filterSt === 'all' || (filterSt === 'late' ? isLate(d) : d.status === filterSt);
     return matchS && matchF;
   });
 
@@ -66,21 +72,20 @@ export default function Diligences() {
     catch (e) { setError(e.message); }
   };
 
-  const counts = { all: items.length, planifie: items.filter(d => d.status === 'planifie').length, en_cours: items.filter(d => d.status === 'en_cours').length, fait: items.filter(d => d.status === 'fait').length };
-  const dateSt = { background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' };
+  const counts = { all: items.length, planifie: items.filter(d => d.status === 'planifie').length, en_cours: items.filter(d => d.status === 'en_cours').length, fait: items.filter(d => d.status === 'fait').length, late: items.filter(isLate).length };
 
   return (
     <div className="fade-in">
       <HeroBanner eyebrow="Diligences" title="Suivi des instructions ministérielles"
         subtitle="Cabinet PM · Partenaires · Présidence · Traçabilité complète"
-        stats={[{ value: counts.all, label: 'Total' }, { value: counts.en_cours, label: 'En cours', color: T.teal }, { value: counts.planifie, label: 'Planifiées', color: '#f59e0b' }, { value: counts.fait, label: 'Réalisées', color: '#10b981' }]} />
+        stats={[{ value: counts.all, label: 'Total' }, { value: counts.en_cours, label: 'En cours', color: T.teal }, { value: counts.planifie, label: 'Planifiées', color: '#f59e0b' }, { value: counts.fait, label: 'Réalisées', color: '#10b981' }, { value: counts.late, label: 'En retard', color: '#ef4444' }]} />
       <div style={{ padding: 28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
           <Input placeholder="Rechercher…" value={search} onChange={setSearch} icon={Search} style={{ flex: 1, minWidth: 220 }} />
           <div style={{ display: 'flex', gap: 6 }}>
-            {[['all','Toutes'],['planifie','Planifiées'],['en_cours','En cours'],['fait','Réalisées']].map(([v, l]) => (
-              <Btn key={v} onClick={() => setFilterSt(v)} variant={filterSt === v ? 'ghost' : 'outline'} color={filterSt === v ? T.teal : T.textDim} size="sm">{l}</Btn>
+            {[['all','Toutes'],['planifie','Planifiées'],['en_cours','En cours'],['fait','Réalisées'],['late','En retard']].map(([v, l]) => (
+              <Btn key={v} onClick={() => setFilterSt(v)} variant={filterSt === v ? 'ghost' : 'outline'} color={filterSt === v ? (v === 'late' ? '#ef4444' : T.teal) : T.textDim} size="sm">{l}{v === 'late' && counts.late > 0 ? ` (${counts.late})` : ''}</Btn>
             ))}
           </div>
           <Btn onClick={openCreate} color={T.teal}><Plus size={14} /> Nouvelle diligence</Btn>
@@ -109,7 +114,14 @@ export default function Diligences() {
                           <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 2 }}>{d.type}</div>
                         </td>
                         <td style={{ padding: '13px 16px', fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted }}>{d.source}</td>
-                        <td style={{ padding: '13px 16px', fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted, whiteSpace: 'nowrap' }}>{d.deadline}</td>
+                        <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
+                          {d.deadline ? (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3 }}>
+                              <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: isLate(d) ? '#ef4444' : T.textMuted, fontWeight: isLate(d) ? 700 : 400 }}>{d.deadline}</span>
+                              {isLate(d) && <span style={{ fontSize: 10, fontFamily: 'DM Sans', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 6px', letterSpacing: 0.5 }}>⚠ En retard</span>}
+                            </div>
+                          ) : <span style={{ color: T.textDim, fontSize: 12, fontFamily: 'DM Sans' }}>—</span>}
+                        </td>
                         <td style={{ padding: '13px 16px', fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted }}>{d.responsible}</td>
                         <td style={{ padding: '13px 16px' }}><Badge status={d.priority} /></td>
                         <td style={{ padding: '13px 16px' }}><Badge status={d.status} /></td>

@@ -8,10 +8,21 @@ const Wave = ({ color = T.teal }) => (
   </svg>
 );
 
-export default function HeroBanner({ eyebrow, title, subtitle, stats = [], color = T.teal }) {
+export default function HeroBanner({ eyebrow, title, subtitle, stats = [], color = T.teal, action = null }) {
   return (
     <div style={{ background: 'linear-gradient(135deg,#060f22 0%,#0a1e3d 60%,#0d2a4a 100%)', padding: '40px 36px 56px', position: 'relative', overflow: 'hidden', borderBottom: `1px solid rgba(255,255,255,0.1)` }}>
       <div style={{ position: 'absolute', top: -60, right: -40, width: 300, height: 300, background: `radial-gradient(circle,${color}18 0%,transparent 70%)`, borderRadius: '50%', pointerEvents: 'none' }} />
+      {action && (
+        <button onClick={action.onClick}
+          style={{ position: 'absolute', top: 24, right: 28, display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, padding: '8px 16px', borderRadius: 8,
+            border: `1px solid ${color}60`, background: `${color}18`, color, cursor: 'pointer', transition: 'all .2s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = `${color}30`; }}
+          onMouseLeave={e => { e.currentTarget.style.background = `${color}18`; }}>
+          {action.icon && action.icon}
+          {action.label}
+        </button>
+      )}
       <p style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', color, marginBottom: 10 }}>{eyebrow}</p>
       <h1 style={{ fontFamily: 'EB Garamond', fontSize: 36, fontWeight: 500, color: '#fff', lineHeight: 1.15, marginBottom: 8 }}>{title}</h1>
       {subtitle && <p style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'rgba(255,255,255,0.65)', maxWidth: 560 }}>{subtitle}</p>}

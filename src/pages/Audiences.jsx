@@ -1,25 +1,149 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ChevronDown, ChevronUp, ArrowRight, Calendar, Edit2 } from 'lucide-react';
-import { audiencesApi } from '../api.js';
+import { Plus, ChevronDown, ChevronUp, ArrowRight, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { audiencesApi, teamApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Btn, Select, Textarea, Spinner, ErrorBanner, Modal, ModalFooter } from '../components/UI.jsx';
 import { T, statusConf } from '../theme.js';
 
-const EMPTY = { institution: '', contact: '', date: '', objet: '', status: 'planifiee', priority: 'haute', suite_a_donner: '', followup_date: '', notes: '' };
+const EMPTY = { institution: '', contact: '', date: '', time: '', objet: '', status: 'planifiee', priority: 'haute', suite_a_donner: '', followup_date: '', notes: '' };
+
+const parseActions = a => {
+  try {
+    const p = typeof a.actions_json === 'string' ? JSON.parse(a.actions_json) : (a.actions_json || []);
+    return Array.isArray(p) ? p : [];
+  } catch (_) { return []; }
+};
+
+const ACT_ST = {
+  a_faire:  { label: 'À faire',  color: '#94a3b8' },
+  en_cours: { label: 'En cours', color: '#f59e0b' },
+  fait:     { label: 'Fait',     color: '#10b981' },
+};
+const CYCLE = { a_faire: 'en_cours', en_cours: 'fait', fait: 'a_faire' };
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function AudienceActions({ audience, onSave, teamMembers }) {
+  const [title, setTitle]             = useState('');
+  const [responsible, setResponsible] = useState('');
+  const [deadline, setDeadline]       = useState('');
+
+  const actions = parseActions(audience);
+  const today   = todayStr();
+  const done    = actions.filter(ac => ac.status === 'fait').length;
+
+  const isLate = ac => ac.deadline && ac.deadline < today && ac.status !== 'fait';
+
+  const add = () => {
+    if (!title.trim()) return;
+    onSave(audience, [
+      ...actions,
+      { id: Date.now(), title: title.trim(), status: 'a_faire', deadline, responsible },
+    ]);
+    setTitle(''); setResponsible(''); setDeadline('');
+  };
+
+  const cycleAc  = id => onSave(audience, actions.map(ac => ac.id === id ? { ...ac, status: CYCLE[ac.status] || 'a_faire' } : ac));
+  const deleteAc = id => onSave(audience, actions.filter(ac => ac.id !== id));
+
+  const inpStyle = {
+    background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6,
+    padding: '7px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none',
+  };
+
+  return (
+    <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
+      <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#8b5cf6', marginBottom: 10 }}>
+        Actions post-audience · {done}/{actions.length} réalisées
+      </div>
+
+      {actions.length === 0 && (
+        <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim, fontStyle: 'italic', marginBottom: 10 }}>
+          Aucune action définie
+        </div>
+      )}
+
+      {actions.map(ac => {
+        const st   = ACT_ST[ac.status] || ACT_ST.a_faire;
+        const late = isLate(ac);
+        return (
+          <div key={ac.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
+            <button onClick={() => cycleAc(ac.id)} title="Changer le statut"
+              style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${st.color}`, background: ac.status === 'fait' ? st.color : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+              {ac.status === 'fait' && <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
+              {ac.status === 'en_cours' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: st.color }} />}
+            </button>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: ac.status === 'fait' ? T.textDim : T.text, textDecoration: ac.status === 'fait' ? 'line-through' : 'none' }}>
+                {ac.title}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
+                {ac.responsible && (
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>👤 {ac.responsible}</span>
+                )}
+                {ac.deadline && (
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: late ? 700 : 400, color: late ? '#ef4444' : T.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    📅 {ac.deadline}
+                    {late && <span style={{ background: '#ef444422', color: '#ef4444', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700 }}>⚠ En retard</span>}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <span style={{ fontSize: 10, fontFamily: 'DM Sans', color: st.color, fontWeight: 600, minWidth: 55, textAlign: 'right', marginTop: 2 }}>{st.label}</span>
+            <button onClick={() => deleteAc(ac.id)}
+              style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: '2px 4px', lineHeight: 0, borderRadius: 4, marginTop: 2 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+              onMouseLeave={e => e.currentTarget.style.color = T.textDim}>
+              <Trash2 size={11} />
+            </button>
+          </div>
+        );
+      })}
+
+      {/* Formulaire d'ajout */}
+      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="Titre de l'action *"
+            onKeyDown={e => e.key === 'Enter' && add()}
+            style={{ ...inpStyle, flex: 1 }} />
+          <button onClick={add}
+            style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans', cursor: 'pointer', flexShrink: 0 }}>
+            + Ajouter
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <select value={responsible} onChange={e => setResponsible(e.target.value)}
+            style={{ ...inpStyle, flex: 1, cursor: 'pointer' }}>
+            <option value="">— Responsable —</option>
+            {teamMembers.map(m => <option key={m.id} value={m.name}>{m.name} · {m.role}</option>)}
+          </select>
+          <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
+            style={{ ...inpStyle, width: 150 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Audiences() {
-  const [items, setItems]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState('');
-  const [filter, setFilter]     = useState('all');
-  const [expanded, setExpanded] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm]         = useState(EMPTY);
-  const [editId, setEditId]     = useState(null);
+  const [items, setItems]           = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState('');
+  const [filter, setFilter]         = useState('all');
+  const [expanded, setExpanded]     = useState(null);
+  const [showModal, setShowModal]   = useState(false);
+  const [form, setForm]             = useState(EMPTY);
+  const [editId, setEditId]         = useState(null);
 
   const load = useCallback(() => {
-    audiencesApi.list().then(setItems).catch(e => setError(e.message)).finally(() => setLoading(false));
+    Promise.all([audiencesApi.list(), teamApi.list().catch(() => [])])
+      .then(([auds, team]) => { setItems(auds); setTeamMembers(team); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -30,7 +154,11 @@ export default function Audiences() {
   });
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setShowModal(true); };
-  const openEdit   = a  => { setForm({ institution: a.institution, contact: a.contact || '', date: a.date || '', objet: a.objet || '', status: a.status, priority: a.priority, suite_a_donner: a.suite_a_donner || '', followup_date: a.followup_date || '', notes: a.notes || '' }); setEditId(a.id); setShowModal(true); };
+  const openEdit   = a  => {
+    setForm({ institution: a.institution, contact: a.contact || '', date: a.date || '', time: a.time || '', objet: a.objet || '', status: a.status, priority: a.priority, suite_a_donner: a.suite_a_donner || '', followup_date: a.followup_date || '', notes: a.notes || '' });
+    setEditId(a.id);
+    setShowModal(true);
+  };
 
   const save = async () => {
     if (!form.institution) { setError('Institution requise'); return; }
@@ -55,14 +183,37 @@ export default function Audiences() {
     } catch (e) { setError(e.message); }
   };
 
-  const counts = { total: items.length, planifiees: items.filter(a => a.status === 'planifiee').length, tenues: items.filter(a => a.status === 'tenue').length, suivi: items.filter(a => a.status === 'tenue' && a.suite_a_donner).length };
-  const dInp = { background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' };
+  const saveActions = async (audience, actions) => {
+    try {
+      const u = await audiencesApi.update(audience.id, { actions_json: JSON.stringify(actions) });
+      setItems(prev => prev.map(i => i.id === audience.id ? u : i));
+    } catch (e) { setError(e.message); }
+  };
+
+  const today = todayStr();
+  const allActions = items.flatMap(parseActions);
+  const lateActions = allActions.filter(ac => ac.deadline && ac.deadline < today && ac.status !== 'fait');
+  const counts = {
+    total: items.length,
+    planifiees: items.filter(a => a.status === 'planifiee').length,
+    tenues: items.filter(a => a.status === 'tenue').length,
+    suivi: items.filter(a => a.status === 'tenue' && a.suite_a_donner).length,
+    actions: allActions.filter(ac => ac.status !== 'fait').length,
+    lateActions: lateActions.length,
+  };
 
   return (
     <div className="fade-in">
       <HeroBanner eyebrow="Audiences reçues" title="Registre des audiences & suivi" color="#8b5cf6"
         subtitle="Institutions, structures et partenaires · Suites à donner"
-        stats={[{ value: counts.total, label: 'Enregistrées' }, { value: counts.planifiees, label: 'À venir', color: '#f59e0b' }, { value: counts.tenues, label: 'Tenues', color: '#10b981' }, { value: counts.suivi, label: 'Suites à donner', color: '#8b5cf6' }]} />
+        stats={[
+          { value: counts.total,       label: 'Enregistrées' },
+          { value: counts.planifiees,  label: 'À venir',           color: '#f59e0b' },
+          { value: counts.tenues,      label: 'Tenues',             color: '#10b981' },
+          { value: counts.suivi,       label: 'Suites à donner',    color: '#8b5cf6' },
+          { value: counts.actions,     label: 'Actions en cours',   color: '#ef4444' },
+          { value: counts.lateActions, label: 'Actions en retard',  color: '#dc2626' },
+        ]} />
       <div style={{ padding: 28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -100,7 +251,7 @@ export default function Audiences() {
                     </div>
                     {isExp && (
                       <div style={{ borderTop: `1px solid ${T.border}`, padding: '16px 20px' }} className="slide-in">
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
                           <div style={{ background: '#8b5cf622', borderRadius: 10, padding: '14px 16px', border: '1px solid #8b5cf633' }}>
                             <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#8b5cf6', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <ArrowRight size={12} /> Suite à donner
@@ -117,6 +268,8 @@ export default function Audiences() {
                             </div>
                           </div>
                         </div>
+
+                        <AudienceActions audience={a} onSave={saveActions} teamMembers={teamMembers} />
                       </div>
                     )}
                   </Card>
@@ -132,8 +285,9 @@ export default function Audiences() {
             <input placeholder="Contact" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
           </div>
           <input placeholder="Objet de l'audience" value={form.objet} onChange={e => setForm(f => ({ ...f, objet: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr 1fr', gap: 12 }}>
             <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
+            <input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none', width: 110 }} />
             <Select value={form.priority} onChange={v => setForm(f => ({ ...f, priority: v }))}><option value="critique">Critique</option><option value="haute">Haute</option><option value="moyenne">Moyenne</option></Select>
             <Select value={form.status}   onChange={v => setForm(f => ({ ...f, status:   v }))}><option value="planifiee">Planifiée</option><option value="tenue">Tenue</option></Select>
           </div>

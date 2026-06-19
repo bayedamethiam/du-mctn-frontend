@@ -164,6 +164,22 @@ export default function Instances() {
   const allContribs  = items.flatMap(i => i.contributions || []);
   const totalGaps    = items.reduce((s,i) => s + (i.gaps||[]).length, 0);
 
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcomingMeetings = items
+    .filter(i => i.next_meeting_date || i.nextMeeting?.date)
+    .map(i => ({
+      inst: i,
+      label: i.nextMeeting?.label || i.next_meeting_label || '',
+      date:  i.nextMeeting?.date  || i.next_meeting_date  || '',
+      lieu:  i.nextMeeting?.lieu  || i.next_meeting_lieu  || '',
+    }))
+    .filter(m => m.date && new Date(m.date) >= today)
+    .sort((a,b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 5);
+
+  const daysUntil = d => Math.ceil((new Date(d) - today) / 86400000);
+  const urgencyColor = d => { const n = daysUntil(d); return n <= 30 ? '#ef4444' : n <= 90 ? '#f59e0b' : '#10b981'; };
+
   const statC = { soumis:{color:'#10b981',label:'Soumis'}, en_cours:{color:T.teal,label:'En cours'}, planifie:{color:'#f59e0b',label:'Planifié'} };
 
   return (
@@ -175,6 +191,7 @@ export default function Instances() {
           { value:`${leaders}/${items.length}`, label:'Bien représenté', color:'#10b981' },
           { value:allContribs.length, label:'Contributions', color:T.teal },
           { value:totalGaps, label:'Lacunes identifiées', color:'#f59e0b' },
+          { value:upcomingMeetings.length, label:'Réunions à venir', color:'#8b5cf6' },
         ]} />
       <div style={{ padding:28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')}/>
@@ -201,6 +218,39 @@ export default function Instances() {
           </div>
           <Btn onClick={openCreateInst} color="#8b5cf6"><Plus size={14}/> Nouvelle instance</Btn>
         </div>
+        {/* ── Prochaines réunions ── */}
+        {!loading && upcomingMeetings.length > 0 && (
+          <Card style={{ marginBottom:20 }}>
+            <div style={{ padding:'14px 18px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:'#8b5cf6' }}>Prochaines réunions & forums</span>
+              <span style={{ fontSize:10, background:'rgba(139,92,246,0.15)', color:'#8b5cf6', borderRadius:8, padding:'1px 8px', fontFamily:'DM Sans', fontWeight:700 }}>{upcomingMeetings.length}</span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:0 }}>
+              {upcomingMeetings.map((m, idx) => {
+                const catC = REP_CATS.find(c=>c.id===m.inst.category)?.color || T.teal;
+                const uc   = urgencyColor(m.date);
+                const days = daysUntil(m.date);
+                return (
+                  <div key={m.inst.id} style={{ padding:'12px 16px', borderRight: idx < upcomingMeetings.length-1 ? `1px solid ${T.border}` : 'none', display:'flex', gap:10, alignItems:'flex-start' }}>
+                    <div style={{ width:38, height:38, borderRadius:8, background:`${uc}15`, border:`1px solid ${uc}30`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <div style={{ fontFamily:'DM Sans', fontSize:13, fontWeight:800, color:uc, lineHeight:1 }}>{m.date?.slice(8)}</div>
+                      <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim, textTransform:'uppercase' }}>{['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][parseInt(m.date?.slice(5,7))-1]}</div>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:catC }}>{m.inst.acronym}</div>
+                      <div style={{ fontFamily:'DM Sans', fontSize:12, color:T.text, lineHeight:1.3, marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.label || 'Réunion'}</div>
+                      {m.lieu && <div style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim }}>📍 {m.lieu}</div>}
+                      <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color:uc, marginTop:2 }}>
+                        {days === 0 ? "Aujourd'hui" : days === 1 ? 'Demain' : `Dans ${days} jours`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
         {loading
           ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner size={36}/></div>
           : filtered.length === 0
