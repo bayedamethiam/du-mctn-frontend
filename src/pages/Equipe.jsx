@@ -144,37 +144,57 @@ export default function Equipe() {
           : members.length === 0
           ? <EmptyState icon={Users} title="Aucun membre" subtitle="Ajoutez des membres à l'équipe en cliquant sur « Nouveau membre »." />
           : viewMode === 'hierarchy'
-          ? <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-              <div><Divider label="Direction" color={T.teal}/>
-                <div style={{ maxWidth:440, margin:'0 auto' }}>
-                  {(byLevel[1]||[]).map(m => <MemberCard key={m.id} member={m} featured/>)}
-                </div>
-              </div>
-              {(byLevel[2]||[]).length > 0 && <>
-                <div style={{ display:'flex', justifyContent:'center' }}><div style={{ width:1, height:24, background:`linear-gradient(180deg,${T.teal}66,#8b5cf666)` }}/></div>
-                <div><Divider label="Coordinateurs" color="#8b5cf6"/>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
-                    {(byLevel[2]||[]).map(m => <MemberCard key={m.id} member={m} featured/>)}
+          ? (() => {
+              // Build pole map: pole → members by level
+              const poleOrder = POLES.map(p => p.v);
+              const polesUsed = [...new Set(members.filter(m => m.level > 1).map(m => m.department || 'Autre'))].sort((a, b) => {
+                const ai = poleOrder.indexOf(a); const bi = poleOrder.indexOf(b);
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+              });
+              return (
+                <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+                  {/* Direction */}
+                  <div>
+                    <Divider label="Direction" color={T.teal}/>
+                    <div style={{ maxWidth:480, margin:'0 auto' }}>
+                      {(byLevel[1]||[]).map(m => <MemberCard key={m.id} member={m} featured/>)}
+                    </div>
                   </div>
+                  {/* Connecteur */}
+                  {polesUsed.length > 0 && (
+                    <div style={{ display:'flex', justifyContent:'center' }}>
+                      <div style={{ width:1, height:24, background:`linear-gradient(180deg,${T.teal}66,transparent)` }}/>
+                    </div>
+                  )}
+                  {/* Pôles */}
+                  {polesUsed.length > 0 && (
+                    <div>
+                      <Divider label="Pôles" color="#8b5cf6"/>
+                      <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(polesUsed.length, 3)},1fr)`, gap:16 }}>
+                        {polesUsed.map(pole => {
+                          const pColor = POLES.find(p => p.v === pole)?.color || '#6b7280';
+                          const poleMembers = members.filter(m => (m.department || 'Autre') === pole && m.level > 1)
+                            .sort((a, b) => a.level - b.level);
+                          if (poleMembers.length === 0) return null;
+                          return (
+                            <div key={pole} style={{ background:T.surface, border:`1px solid ${pColor}33`, borderRadius:12, padding:'16px 16px 12px', borderTop:`3px solid ${pColor}` }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                                <div style={{ width:8, height:8, borderRadius:'50%', background:pColor }}/>
+                                <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:pColor }}>{pole}</span>
+                                <span style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, marginLeft:'auto' }}>{poleMembers.length} membre{poleMembers.length > 1 ? 's' : ''}</span>
+                              </div>
+                              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                                {poleMembers.map(m => <MemberCard key={m.id} member={m} featured={m.level === 2}/>)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </>}
-              {(byLevel[3]||[]).length > 0 && <>
-                <div style={{ display:'flex', justifyContent:'center' }}><div style={{ width:1, height:24, background:`linear-gradient(180deg,#8b5cf666,#10b98166)` }}/></div>
-                <div><Divider label="Chargés de mission" color="#10b981"/>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-                    {(byLevel[3]||[]).map(m => <MemberCard key={m.id} member={m}/>)}
-                  </div>
-                </div>
-              </>}
-              {(byLevel[4]||[]).length > 0 && <>
-                <div style={{ display:'flex', justifyContent:'center' }}><div style={{ width:1, height:24, background:`linear-gradient(180deg,#10b98166,#f59e0b66)` }}/></div>
-                <div><Divider label="Assistants" color="#f59e0b"/>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-                    {(byLevel[4]||[]).map(m => <MemberCard key={m.id} member={m}/>)}
-                  </div>
-                </div>
-              </>}
-            </div>
+              );
+            })()
           : viewMode === 'pole'
           ? <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
               {Object.entries(byPole).sort(([a],[b]) => {
@@ -223,10 +243,13 @@ export default function Equipe() {
             </div>
             <div>
               <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Pôle</label>
-              <Select value={form.department} onChange={f('department')}>
-                <option value="">— Sélectionner un pôle —</option>
-                {POLES.map(p => <option key={p.v} value={p.v}>{p.v}</option>)}
-              </Select>
+              <input list="poles-list" value={form.department} onChange={e => f('department')(e.target.value)} placeholder="Sélectionner ou saisir un pôle"
+                style={{ width:'100%', background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
+              <datalist id="poles-list">
+                {POLES.map(p => <option key={p.v} value={p.v}/>)}
+                {/* pôles déjà utilisés par l'équipe */}
+                {[...new Set(members.map(m => m.department).filter(Boolean))].filter(d => !POLES.find(p => p.v === d)).map(d => <option key={d} value={d}/>)}
+              </datalist>
             </div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>

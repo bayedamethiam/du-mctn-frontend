@@ -8,7 +8,6 @@ import Diligences   from './pages/Diligences.jsx';
 import Partenariats from './pages/Partenariats.jsx';
 import Audiences    from './pages/Audiences.jsx';
 import SuiviEval    from './pages/SuiviEval.jsx';
-import Instances    from './pages/Instances.jsx';
 import Equipe       from './pages/Equipe.jsx';
 import Calendrier   from './pages/Calendrier.jsx';
 import { dashboardApi } from './api.js';
@@ -19,7 +18,7 @@ const VIEWS = {
   dashboard: Dashboard, portefeuille: Portefeuille,
   diligences: Diligences, partenariats: Partenariats,
   audiences: Audiences, se: SuiviEval,
-  instances: Instances, equipe: Equipe,
+  equipe: Equipe,
   calendrier: Calendrier,
 };
 
