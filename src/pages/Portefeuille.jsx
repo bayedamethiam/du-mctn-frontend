@@ -308,7 +308,7 @@ export default function Portefeuille() {
         subtitle="New Deal Technologique · Suivi budgétaire et physique"
         stats={[
           { value: programs.length, label: 'Programmes' },
-          { value: programs.reduce((s,p) => s + (p.projects_count||0), 0), label: 'Projets total' },
+          { value: programs.reduce((s,p) => s + (parseInt(p.projects_count)||0), 0), label: 'Projets total' },
           { value: `${total} Md`,   label: 'FCFA total', color: '#10b981' },
           { value: `${avgP}%`,      label: 'Avancement moyen' },
         ]}
@@ -377,7 +377,7 @@ export default function Portefeuille() {
                               </div>
                             )}
                             <div style={{ fontSize: 11, color: T.textDim, marginLeft: 'auto', fontFamily: 'DM Sans' }}>
-                              {progs.length} programmes · {progs.reduce((a, p) => a + (p.projects_count || 0), 0)} projets
+                              {progs.length} programmes · {progs.reduce((a, p) => a + (parseInt(p.projects_count) || 0), 0)} projets
                             </div>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
