@@ -98,11 +98,18 @@ export const partnershipsApi = {
   delete:      id             => api.delete(`/partnerships/${id}`),
   uploadDoc:   (id, file)     => api.upload(`/partnerships/${id}/documents`, file),
   deleteDoc:   (id, did)      => api.delete(`/partnerships/${id}/documents/${did}`),
-  downloadDoc: (id, did, name) => {
-    const a = document.createElement('a');
-    a.href = `${BASE}/partnerships/${id}/documents/${did}/download`;
-    a.download = name; a.target = '_blank';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  downloadDoc: async (id, did, name) => {
+    const res = await fetch(`${BASE}/partnerships/${id}/documents/${did}/download`, {
+      headers: { Authorization: `Bearer ${_token}` },
+    });
+    if (!res.ok) throw new Error('Téléchargement impossible');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   },
 };
 
