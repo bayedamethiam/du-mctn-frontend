@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import LogoDU from '../components/LogoDU.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { T } from '../theme.js';
 
@@ -27,12 +28,9 @@ export default function Login() {
         <div style={{ position: 'absolute', bottom: '10%', right: '20%', width: 400, height: 400, background: 'radial-gradient(circle,#8b5cf60a 0%,transparent 70%)', borderRadius: '50%' }} />
       </div>
       <div style={{ width: '100%', maxWidth: 440, position: 'relative', zIndex: 1 }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '10px 20px', display: 'inline-block', marginBottom: 16 }}>
-            <img src="/logo-du-mtn.jpeg" alt="DU-MTN" style={{ height: 80, width: 'auto', display: 'block' }} />
-          </div>
-          <h1 style={{ fontFamily: 'EB Garamond', fontSize: 28, fontWeight: 500, color: T.text }}>Delivery Unit · MTN</h1>
-          <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted, marginTop: 4 }}>New Deal Technologique 2025–2034</p>
+        <div style={{ textAlign: 'center', marginBottom: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <LogoDU size="md" />
+          <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted, marginTop: 0 }}>New Deal Technologique 2025–2034</p>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 32 }}>
           <h2 style={{ fontFamily: 'DM Sans', fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 4 }}>Connexion</h2>
