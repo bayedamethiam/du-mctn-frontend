@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Fond sombre -->
+  <rect width="64" height="64" rx="12" fill="#060f22"/>
+
+  <!-- Barre drapeau sénégalais -->
+  <rect x="8" y="8" width="16" height="5" rx="1" fill="#1DB954"/>
+  <rect x="24" y="8" width="16" height="5" fill="#F7D20A"/>
+  <rect x="40" y="8" width="16" height="5" rx="1" fill="#E8001C"/>
+  <!-- Étoile verte -->
+  <text x="32" y="14" text-anchor="middle" font-size="7" fill="#1DB954" font-family="sans-serif">★</text>
+
+  <!-- Texte DU -->
+  <text x="32" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff" font-family="DM Sans, Arial, sans-serif" letter-spacing="1">DU</text>
+
+  <!-- Ligne bleue -->
+  <rect x="8" y="43" width="48" height="2" rx="1" fill="#3B82F6"/>
+
+  <!-- Texte MTN -->
+  <text x="32" y="56" text-anchor="middle" font-size="10" font-weight="600" fill="rgba(255,255,255,0.75)" font-family="DM Sans, Arial, sans-serif" letter-spacing="2">MTN</text>
+</svg>
