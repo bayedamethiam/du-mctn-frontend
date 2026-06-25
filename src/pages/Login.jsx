@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { T } from '../theme.js';
 
@@ -28,10 +28,10 @@ export default function Login() {
       </div>
       <div style={{ width: '100%', maxWidth: 440, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: `linear-gradient(135deg,${T.teal},${T.tealDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <Zap size={24} color="#fff" />
+          <div style={{ background: '#fff', borderRadius: 12, padding: '10px 20px', display: 'inline-block', marginBottom: 16 }}>
+            <img src="/logo-du-mtn.jpeg" alt="DU-MTN" style={{ height: 80, width: 'auto', display: 'block' }} />
           </div>
-          <h1 style={{ fontFamily: 'EB Garamond', fontSize: 28, fontWeight: 500, color: T.text }}>Delivery Unit · MCTN</h1>
+          <h1 style={{ fontFamily: 'EB Garamond', fontSize: 28, fontWeight: 500, color: T.text }}>Delivery Unit · MTN</h1>
           <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted, marginTop: 4 }}>New Deal Technologique 2025–2034</p>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 32 }}>

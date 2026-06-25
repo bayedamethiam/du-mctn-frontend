@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, Zap, AlertCircle, LogOut, ChevronDown, CalendarDays } from 'lucide-react';
+import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, AlertCircle, LogOut, ChevronDown, CalendarDays } from 'lucide-react';
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -25,13 +25,13 @@ export default function Layout({ view, setView, alerts, children }) {
       <div style={{ background: `linear-gradient(90deg,${T.navyMid} 0%,#0a1e3d 100%)`, borderBottom: `1px solid rgba(255,255,255,0.1)`, position: 'sticky', top: 0, zIndex: 50 }}>
         {/* Brand bar */}
         <div style={{ padding: '12px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: `linear-gradient(135deg,${T.teal},${T.tealDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={18} color="#fff" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: '#fff', borderRadius: 8, padding: '3px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/logo-du-mtn.jpeg" alt="DU-MTN" style={{ height: 40, width: 'auto', display: 'block' }} />
             </div>
             <div>
-              <div style={{ fontFamily: 'EB Garamond', fontSize: 18, fontWeight: 500, color: T.text, lineHeight: 1 }}>Delivery Unit · MCTN</div>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim, letterSpacing: 0.5 }}>Ministère de la Communication, des Télécommunications et du Numérique</div>
+              <div style={{ fontFamily: 'EB Garamond', fontSize: 17, fontWeight: 500, color: T.text, lineHeight: 1 }}>Delivery Unit · MTN</div>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim, letterSpacing: 0.5 }}>Unité d'Appui Technique Opérationnelle</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
