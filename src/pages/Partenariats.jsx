@@ -1,18 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Building, Mail, Calendar, Upload, File, X, Paperclip, Plus, Pencil, Trash2 } from 'lucide-react';
-import { partnershipsApi, programsApi } from '../api.js';
+import { ChevronDown, ChevronUp, Building, Mail, Calendar, Upload, File, X, Paperclip, Plus, Pencil, Trash2, Handshake, Globe } from 'lucide-react';
+import { partnershipsApi, programsApi, instancesApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Btn, Spinner, ErrorBanner, Modal, Input, Select, Textarea, EmptyState } from '../components/UI.jsx';
 import { T } from '../theme.js';
+import Instances from './Instances.jsx';
+
+const SECTIONS = [
+  { id:'partenaires', label:'Partenaires & accords',            icon:Handshake },
+  { id:'instances',   label:'Représentation internationale',    icon:Globe },
+];
 
 const TYPES = [
-  { id:'all',        label:'Tous',          color: T.teal },
-  { id:'bailleur',   label:'Bailleurs',     color:'#10b981' },
-  { id:'fondation',  label:'Fondations',    color:'#8b5cf6' },
-  { id:'bilateral',  label:'Bilatéraux',    color:'#f59e0b' },
-  { id:'multilateral',label:'Multilatéraux',color:'#3b82f6' },
-  { id:'ong',        label:'ONG',           color:'#ec4899' },
-  { id:'prive',      label:'Privé',         color:'#06b6d4' },
+  { id:'all',        label:'Tous',                    color: T.teal },
+  { id:'bailleur',   label:'Bailleurs de fonds',      color:'#10b981' },
+  { id:'fondation',  label:'Fondations',              color:'#8b5cf6' },
+  { id:'bilateral',  label:'Bilatéraux',              color:'#f59e0b' },
+  { id:'multilateral',label:'Multilatéraux',          color:'#3b82f6' },
+  { id:'ong',        label:'ONG / Société civile',    color:'#ec4899' },
+  { id:'prive',      label:'Secteur privé',           color:'#06b6d4' },
 ];
 const FT = { pdf:{color:'#ef4444',label:'PDF'}, word:{color:'#3b82f6',label:'Word'}, excel:{color:'#10b981',label:'Excel'}, default:{color:T.textDim,label:'Doc'} };
 
@@ -26,6 +32,7 @@ const Field = ({ label, children }) => (
 );
 
 export default function Partenariats() {
+  const [section, setSection]   = useState('partenaires');
   const [items, setItems]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -37,11 +44,12 @@ export default function Partenariats() {
   const [form, setForm]         = useState(EMPTY);
   const [saving, setSaving]     = useState(false);
   const [allProjects, setAllProjects] = useState([]);
+  const [instCount, setInstCount] = useState(0);
   const fileRefs = useRef({});
 
   const load = useCallback(() => {
-    Promise.all([partnershipsApi.list(), programsApi.allProjects()])
-      .then(([parts, projs]) => { setItems(parts); setAllProjects(projs); })
+    Promise.all([partnershipsApi.list(), programsApi.allProjects(), instancesApi.list()])
+      .then(([parts, projs, insts]) => { setItems(parts); setAllProjects(projs); setInstCount(insts.length); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -112,12 +120,31 @@ export default function Partenariats() {
 
   const f = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
   const totalDocs = items.reduce((s, p) => s + (p.documents?.length || 0), 0);
+  const activeCount = items.filter(p => p.status === 'actif').length;
 
   return (
     <div className="fade-in">
       <HeroBanner eyebrow="Partenariats stratégiques" title="Partenaires techniques & financiers"
-        subtitle="Bailleurs, fondations, bilatéraux, ONG · Documents & suivi des accords" color="#10b981"
-        stats={[{ value: items.length, label: 'Partenaires' }, { value: totalDocs, label: 'Documents joints', color: '#10b981' }]} />
+        subtitle="Bailleurs, fondations, bilatéraux, ONG · Représentation internationale · Documents & suivi des accords" color="#10b981"
+        stats={[
+          { value: activeCount, label: 'Partenaires actifs' },
+          { value: instCount,   label: 'Instances internationales', color:'#8b5cf6' },
+          { value: totalDocs,   label: 'Documents joints', color:'#10b981' },
+        ]} />
+      <div style={{ display:'flex', borderBottom:`1px solid ${T.border}`, padding:'0 28px' }}>
+        {SECTIONS.map(s => {
+          const Icon = s.icon;
+          const active = section === s.id;
+          return (
+            <button key={s.id} onClick={() => setSection(s.id)}
+              style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'DM Sans', fontSize:13, fontWeight:600, padding:'16px 4px', marginRight:28, background:'none', border:'none', borderBottom:`2px solid ${active?T.teal:'transparent'}`, color:active?T.teal:T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>
+              <Icon size={15}/> {s.label}
+            </button>
+          );
+        })}
+      </div>
+      {section === 'instances' ? <Instances embedded /> : (
+      <>
       <div style={{ padding: 28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:12 }}>
@@ -304,6 +331,8 @@ export default function Partenariats() {
           </div>
         </div>
       </Modal>
+      </>
+      )}
     </div>
   );
 }

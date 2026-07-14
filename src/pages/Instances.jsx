@@ -51,7 +51,7 @@ const PillarBar = ({ label, value, max=25, color }) => (
   </div>
 );
 
-export default function Instances() {
+export default function Instances({ embedded = false }) {
   const [items, setItems]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -183,16 +183,18 @@ export default function Instances() {
   const statC = { soumis:{color:'#10b981',label:'Soumis'}, en_cours:{color:T.teal,label:'En cours'}, planifie:{color:'#f59e0b',label:'Planifié'} };
 
   return (
-    <div className="fade-in">
-      <HeroBanner eyebrow="Représentation internationale" title="Présence du Sénégal dans les instances mondiales"
-        subtitle="Qualité de présence et contributions techniques · NDT 2025–2034" color="#8b5cf6"
-        stats={[
-          { value:`${avgScore}/100`, label:'Score moyen', color:scoreColor(avgScore) },
-          { value:`${leaders}/${items.length}`, label:'Bien représenté', color:'#10b981' },
-          { value:allContribs.length, label:'Contributions', color:T.teal },
-          { value:totalGaps, label:'Lacunes identifiées', color:'#f59e0b' },
-          { value:upcomingMeetings.length, label:'Réunions à venir', color:'#8b5cf6' },
-        ]} />
+    <div className={embedded ? undefined : 'fade-in'}>
+      {!embedded && (
+        <HeroBanner eyebrow="Représentation internationale" title="Présence du Sénégal dans les instances mondiales"
+          subtitle="Qualité de présence et contributions techniques · NDT 2025–2034" color="#8b5cf6"
+          stats={[
+            { value:`${avgScore}/100`, label:'Score moyen', color:scoreColor(avgScore) },
+            { value:`${leaders}/${items.length}`, label:'Bien représenté', color:'#10b981' },
+            { value:allContribs.length, label:'Contributions', color:T.teal },
+            { value:totalGaps, label:'Lacunes identifiées', color:'#f59e0b' },
+            { value:upcomingMeetings.length, label:'Réunions à venir', color:'#8b5cf6' },
+          ]} />
+      )}
       <div style={{ padding:28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')}/>
         {totalGaps > 0 && (
