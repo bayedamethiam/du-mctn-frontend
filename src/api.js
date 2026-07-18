@@ -1,8 +1,13 @@
-const BASE = import.meta.env.VITE_API_URL || '/api';
-let _token = localStorage.getItem('du_token') || '';
+import * as Demo from './demo/api.js';
+
+const BASE    = import.meta.env.VITE_API_URL || '/api';
+const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+
+let _token    = IS_DEMO ? 'demo' : (localStorage.getItem('du_token') || '');
 let _onUnauth = null;
 
 export function setToken(t) {
+  if (IS_DEMO) return;
   _token = t;
   t ? localStorage.setItem('du_token', t) : localStorage.removeItem('du_token');
 }
@@ -28,7 +33,14 @@ async function request(method, path, body, isForm = false) {
   return data;
 }
 
-export const api = {
+export const api = IS_DEMO ? {
+  get:    () => Promise.resolve({}),
+  post:   () => Promise.resolve({}),
+  put:    () => Promise.resolve({}),
+  patch:  () => Promise.resolve({}),
+  delete: () => Promise.resolve({}),
+  upload: () => Promise.resolve({}),
+} : {
   get:    path       => request('GET',    path),
   post:   (path, b)  => request('POST',   path, b),
   put:    (path, b)  => request('PUT',    path, b),
@@ -42,8 +54,7 @@ export const api = {
   },
 };
 
-// Auth
-export const authApi = {
+export const authApi = IS_DEMO ? Demo.authApi : {
   login:          (email, password) => request('POST', '/auth/login', { email, password }),
   logout:         rt                => request('POST', '/auth/logout', { refreshToken: rt }),
   me:             ()                => request('GET',  '/auth/me'),
@@ -51,22 +62,19 @@ export const authApi = {
   changePassword: (cur, nxt)        => request('POST', '/auth/change-password', { currentPassword: cur, newPassword: nxt }),
 };
 
-// Dashboard
-export const dashboardApi = {
+export const dashboardApi = IS_DEMO ? Demo.dashboardApi : {
   kpis:   () => api.get('/dashboard/kpis'),
   alerts: () => api.get('/dashboard/alerts'),
 };
 
-// Axes
-export const axesApi = {
+export const axesApi = IS_DEMO ? Demo.axesApi : {
   list:   ()        => api.get('/axes'),
   create: d         => api.post('/axes', d),
   update: (id, d)   => api.put(`/axes/${id}`, d),
   delete: id        => api.delete(`/axes/${id}`),
 };
 
-// Programs
-export const programsApi = {
+export const programsApi = IS_DEMO ? Demo.programsApi : {
   list:          ()         => api.get('/programs'),
   get:           id         => api.get(`/programs/${id}`),
   create:        d          => api.post('/programs', d),
@@ -79,8 +87,7 @@ export const programsApi = {
   deleteProject: pid        => api.delete(`/programs/projects/${pid}`),
 };
 
-// Diligences
-export const diligencesApi = {
+export const diligencesApi = IS_DEMO ? Demo.diligencesApi : {
   list:         (p = {}) => api.get('/diligences?' + new URLSearchParams(p)),
   get:          id       => api.get(`/diligences/${id}`),
   create:       d        => api.post('/diligences', d),
@@ -89,8 +96,7 @@ export const diligencesApi = {
   delete:       id       => api.delete(`/diligences/${id}`),
 };
 
-// Partnerships
-export const partnershipsApi = {
+export const partnershipsApi = IS_DEMO ? Demo.partnershipsApi : {
   list:        ()             => api.get('/partnerships'),
   get:         id             => api.get(`/partnerships/${id}`),
   create:      d              => api.post('/partnerships', d),
@@ -113,8 +119,7 @@ export const partnershipsApi = {
   },
 };
 
-// Audiences
-export const audiencesApi = {
+export const audiencesApi = IS_DEMO ? Demo.audiencesApi : {
   list:         (p = {}) => api.get('/audiences?' + new URLSearchParams(p)),
   get:          id       => api.get(`/audiences/${id}`),
   create:       d        => api.post('/audiences', d),
@@ -123,8 +128,7 @@ export const audiencesApi = {
   delete:       id       => api.delete(`/audiences/${id}`),
 };
 
-// Suivi-Évaluation
-export const seApi = {
+export const seApi = IS_DEMO ? Demo.seApi : {
   stats:           ()          => api.get('/se/stats'),
   indicators:      ()          => api.get('/se/indicators'),
   updateIndicator: (id, d)     => api.put(`/se/indicators/${id}`, d),
@@ -143,8 +147,7 @@ export const seApi = {
   updateEvaluation:(id, d)     => api.put(`/se/evaluations/${id}`, d),
 };
 
-// Instances internationales
-export const instancesApi = {
+export const instancesApi = IS_DEMO ? Demo.instancesApi : {
   list:               ()            => api.get('/instances'),
   get:                id            => api.get(`/instances/${id}`),
   create:             d             => api.post('/instances', d),
@@ -154,8 +157,7 @@ export const instancesApi = {
   deleteContribution: (id, cid)     => api.delete(`/instances/${id}/contributions/${cid}`),
 };
 
-// Project meetings
-export const projectMeetingsApi = {
+export const projectMeetingsApi = IS_DEMO ? Demo.projectMeetingsApi : {
   all:    ()         => api.get('/project-meetings/all'),
   list:   projectId  => api.get(`/project-meetings/${projectId}`),
   create: (pid, d)   => api.post(`/project-meetings/${pid}`, d),
@@ -163,24 +165,21 @@ export const projectMeetingsApi = {
   delete: id         => api.delete(`/project-meetings/entry/${id}`),
 };
 
-// Événements internationaux / nationaux / régionaux
-export const intlEventsApi = {
+export const intlEventsApi = IS_DEMO ? Demo.intlEventsApi : {
   list:   ()        => api.get('/intl-events'),
   create: d         => api.post('/intl-events', d),
   update: (id, d)   => api.put(`/intl-events/${id}`, d),
   delete: id        => api.delete(`/intl-events/${id}`),
 };
 
-// Workflow templates
-export const workflowTemplatesApi = {
+export const workflowTemplatesApi = IS_DEMO ? Demo.workflowTemplatesApi : {
   list:   ()        => api.get('/workflow-templates'),
   create: d         => api.post('/workflow-templates', d),
   update: (id, d)   => api.put(`/workflow-templates/${id}`, d),
   delete: id        => api.delete(`/workflow-templates/${id}`),
 };
 
-// Équipe
-export const teamApi = {
+export const teamApi = IS_DEMO ? Demo.teamApi : {
   list:   ()        => api.get('/team'),
   create: d         => api.post('/team', d),
   update: (id, d)   => api.put(`/team/${id}`, d),

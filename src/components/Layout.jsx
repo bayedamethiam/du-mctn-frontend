@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, AlertCircle, LogOut, ChevronDown, CalendarDays } from 'lucide-react';
+import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, AlertCircle, LogOut, ChevronDown, CalendarDays, FlaskConical } from 'lucide-react';
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import LogoDU from './LogoDU.jsx';
+
+const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
 const NAV = [
   { id: 'dashboard',    icon: BarChart3,     label: 'Dashboard' },
@@ -23,7 +25,13 @@ export default function Layout({ view, setView, alerts, children }) {
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: 'DM Sans, sans-serif' }}>
-      <div style={{ background: `linear-gradient(90deg,${T.navyMid} 0%,#0a1e3d 100%)`, borderBottom: `1px solid rgba(255,255,255,0.1)`, position: 'sticky', top: 0, zIndex: 50 }}>
+      {IS_DEMO && (
+        <div style={{ background: 'linear-gradient(90deg,#7c3aed,#4f46e5)', padding: '7px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 12, fontFamily: 'DM Sans', fontWeight: 600, color: '#fff', letterSpacing: 0.3 }}>
+          <FlaskConical size={13} />
+          MODE DÉMO — Données fictives à titre d'illustration. Aucune information réelle.
+        </div>
+      )}
+      <div style={{ background: `linear-gradient(90deg,${T.navyMid} 0%,#0a1e3d 100%)`, borderBottom: `1px solid rgba(255,255,255,0.1)`, position: 'sticky', top: IS_DEMO ? 33 : 0, zIndex: 50 }}>
         {/* Brand bar */}
         <div style={{ padding: '12px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
