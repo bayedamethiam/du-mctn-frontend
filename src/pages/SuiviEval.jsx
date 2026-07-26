@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Target, Award, BarChart3, Calendar, Upload, X, File, Paperclip,
-         CheckCircle, AlertCircle, Plus, Pencil, Clock } from 'lucide-react';
+         CheckCircle, AlertCircle, Plus, Pencil, Clock, Trash2 } from 'lucide-react';
 import { seApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, ProgressBar, Btn, Select, Spinner, ErrorBanner,
@@ -46,6 +46,9 @@ const FT = {
 };
 
 const REVUE_EMPTY = { date:'', type:'mensuelle', titre:'', animateur:'', statut:'planifiee', alertes:'0', decisions:'0', participants:'' };
+
+const IND_EMPTY  = { current_value:'', status:'on_track', trend:'', last_update:'', responsible:'', methodology:'' };
+const EVAL_EMPTY = { annee: new Date().getFullYear(), statut:'planifiee', evaluateur:'', commanditaire:'', date:'', note_globale:'', notes:{ pertinence:'', efficacite:'', efficience:'', impact:'', durabilite:'' }, conclusions:'', recommandations:'', alertes:'' };
 
 /* ── Gauge circulaire ──────────────────────────────────────── */
 const Gauge = ({ value, size = 52 }) => {
@@ -147,6 +150,16 @@ export default function SuiviEval() {
   const [savingRev, setSavingRev]   = useState(false);
   const [revForm, setRevForm]       = useState(REVUE_EMPTY);
 
+  const [indModal, setIndModal]       = useState(false);
+  const [editingInd, setEditingInd]   = useState(null);
+  const [savingInd, setSavingInd]     = useState(false);
+  const [indForm, setIndForm]         = useState(IND_EMPTY);
+
+  const [evalModal, setEvalModal]     = useState(false);
+  const [editingEval, setEditingEval] = useState(null);
+  const [savingEval, setSavingEval]   = useState(false);
+  const [evalForm, setEvalForm]       = useState(EVAL_EMPTY);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -160,6 +173,75 @@ export default function SuiviEval() {
   useEffect(() => { load(); }, [load]);
 
   const rf = k => v => setRevForm(p => ({ ...p, [k]: v }));
+  const ef = k => v => setEvalForm(p => ({ ...p, [k]: v }));
+  const enf = k => v => setEvalForm(p => ({ ...p, notes: { ...p.notes, [k]: v } }));
+  const inf = k => v => setIndForm(p => ({ ...p, [k]: v }));
+
+  const openEditInd = (ind, e) => {
+    e.stopPropagation();
+    setEditingInd(ind);
+    setIndForm({ current_value: ind.current_value ?? '', status: ind.status || 'on_track', trend: ind.trend ?? '', last_update: ind.last_update || '', responsible: ind.responsible || '', methodology: ind.methodology || '' });
+    setIndModal(true);
+  };
+
+  const handleSaveInd = async () => {
+    setSavingInd(true);
+    try {
+      const payload = { ...indForm, current_value: indForm.current_value !== '' ? Number(indForm.current_value) : null, trend: indForm.trend !== '' ? Number(indForm.trend) : null };
+      const updated = await seApi.updateIndicator(editingInd.id, payload);
+      setInd(prev => prev.map(i => i.id === editingInd.id ? { ...i, ...updated, milestones: i.milestones } : i));
+      setIndModal(false);
+    } catch (e) { setError(e.message); }
+    finally { setSavingInd(false); }
+  };
+
+  const openCreateEval = () => { setEvalForm(EVAL_EMPTY); setEditingEval(null); setEvalModal(true); };
+  const openEditEval = (ev, e) => {
+    e.stopPropagation();
+    const notes = (ev.notes_json && typeof ev.notes_json === 'object') ? ev.notes_json : {};
+    setEvalForm({
+      annee: ev.annee, statut: ev.statut, evaluateur: ev.evaluateur || '', commanditaire: ev.commanditaire || '',
+      date: ev.date || '', note_globale: ev.note_globale || '',
+      notes: { pertinence: notes.pertinence || '', efficacite: notes.efficacite || '', efficience: notes.efficience || '', impact: notes.impact || '', durabilite: notes.durabilite || '' },
+      conclusions: (Array.isArray(ev.conclusions_json) ? ev.conclusions_json : []).join('\n'),
+      recommandations: (Array.isArray(ev.recommandations_json) ? ev.recommandations_json : []).join('\n'),
+      alertes: (Array.isArray(ev.alertes_json) ? ev.alertes_json : []).join('\n'),
+    });
+    setEditingEval(ev); setEvalModal(true);
+  };
+
+  const handleSaveEval = async () => {
+    if (!evalForm.annee) return setError('Année requise');
+    setSavingEval(true);
+    try {
+      const toLines = s => s.split('\n').map(x => x.trim()).filter(Boolean);
+      const notes = {};
+      Object.entries(evalForm.notes).forEach(([k, v]) => { if (v !== '') notes[k] = Number(v); });
+      const payload = { annee: Number(evalForm.annee), statut: evalForm.statut, evaluateur: evalForm.evaluateur, commanditaire: evalForm.commanditaire, date: evalForm.date, note_globale: evalForm.note_globale !== '' ? Number(evalForm.note_globale) : null, notes_json: notes, conclusions_json: toLines(evalForm.conclusions), recommandations_json: toLines(evalForm.recommandations), alertes_json: toLines(evalForm.alertes) };
+      const parseEval = raw => ({ ...raw, notes_json: JSON.parse(raw.notes_json || '{}'), conclusions_json: JSON.parse(raw.conclusions_json || '[]'), recommandations_json: JSON.parse(raw.recommandations_json || '[]'), alertes_json: JSON.parse(raw.alertes_json || '[]') });
+      if (editingEval) {
+        const updated = await seApi.updateEvaluation(editingEval.id, payload);
+        setEvals(prev => prev.map(e => e.id === editingEval.id ? parseEval(updated) : e));
+      } else {
+        const created = await seApi.createEvaluation(payload);
+        setEvals(prev => [...prev, parseEval(created)].sort((a, b) => a.annee - b.annee));
+      }
+      setEvalModal(false);
+    } catch (e) { setError(e.message); }
+    finally { setSavingEval(false); }
+  };
+
+  const handleDeleteEval = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Supprimer cette évaluation ?')) return;
+    try { await seApi.deleteEvaluation(id); setEvals(prev => prev.filter(e => e.id !== id)); } catch (e) { setError(e.message); }
+  };
+
+  const handleDeleteRevue = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Supprimer cette revue et ses documents ?')) return;
+    try { await seApi.deleteRevue(id); setRevues(prev => prev.filter(r => r.id !== id)); } catch (e) { setError(e.message); }
+  };
 
   const openCreateRevue = () => { setRevForm(REVUE_EMPTY); setEditingRev(null); setRevModal(true); };
   const openEditRevue   = (r, e) => {
@@ -418,9 +500,14 @@ export default function SuiviEval() {
                           <Sparkline milestones={ind.milestones||[]} color={scoreColor(p)}/>
                         </div>
                       </div>
-                      <div style={{ flexShrink:0, textAlign:'right' }}>
+                      <div style={{ flexShrink:0, textAlign:'right', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                         <Gauge value={p} size={52}/>
-                        <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim, marginTop:3 }}>{ind.last_update}</div>
+                        <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim }}>{ind.last_update || '—'}</div>
+                        <button onClick={e => openEditInd(ind, e)} title="Modifier"
+                          style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'2px 4px', borderRadius:4 }}
+                          onMouseEnter={e=>e.currentTarget.style.color=T.teal} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}>
+                          <Pencil size={12}/>
+                        </button>
                       </div>
                     </div>
 
@@ -535,6 +622,10 @@ export default function SuiviEval() {
                         <button onClick={e=>openEditRevue(r,e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier">
                           <Pencil size={12}/>
                         </button>
+                        <button onClick={e=>handleDeleteRevue(r.id,e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Supprimer"
+                          onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}>
+                          <Trash2 size={12}/>
+                        </button>
                       </div>
 
                       {isExp && (
@@ -618,6 +709,9 @@ export default function SuiviEval() {
         {/* ══ ÉVALUATIONS ══════════════════════════════════════ */}
         {tab === 'evaluations' && (
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+            <div style={{ display:'flex', justifyContent:'flex-end' }}>
+              <Btn onClick={openCreateEval} color="#f59e0b"><Plus size={14}/> Nouvelle évaluation</Btn>
+            </div>
             {evaluations.map(ev => {
               const isDone = ev.statut === 'terminee';
               const sc = isDone ? '#10b981' : '#f59e0b';
@@ -636,6 +730,10 @@ export default function SuiviEval() {
                           <span style={{ background:`${sc}20`, color:sc, fontFamily:'DM Sans', fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:10 }}>
                             {isDone?'✓ Terminée':'○ Planifiée'}
                           </span>
+                          <button onClick={e => openEditEval(ev, e)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'2px 4px' }}
+                            onMouseEnter={e=>e.currentTarget.style.color=T.teal} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><Pencil size={13}/></button>
+                          <button onClick={e => handleDeleteEval(ev.id, e)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'2px 4px' }}
+                            onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><Trash2 size={13}/></button>
                         </div>
                         <div style={{ display:'flex', gap:20, flexWrap:'wrap' }}>
                           <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textDim }}>🏢 {ev.evaluateur}</span>
@@ -707,6 +805,115 @@ export default function SuiviEval() {
           </div>
         )}
       </div>
+
+      {/* ── Modal indicateur ── */}
+      <Modal open={indModal} onClose={() => setIndModal(false)} title={`Modifier ${editingInd?.code} — ${editingInd?.label?.slice(0,40)}`} width={540}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Valeur actuelle ({editingInd?.unit})</label>
+              <Input value={indForm.current_value} onChange={inf('current_value')} type="number" placeholder="0"/>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Statut</label>
+              <Select value={indForm.status} onChange={inf('status')} style={{ width:'100%' }}>
+                <option value="on_track">✅ On track</option>
+                <option value="attention">⚠️ En vigilance</option>
+                <option value="risque">🔴 En risque</option>
+              </Select>
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Tendance annuelle ({editingInd?.unit}/an)</label>
+              <Input value={indForm.trend} onChange={inf('trend')} type="number" placeholder="0"/>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Date de mise à jour</label>
+              <Input value={indForm.last_update} onChange={inf('last_update')} placeholder="Ex: T1 2026"/>
+            </div>
+          </div>
+          <div>
+            <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Responsable</label>
+            <Input value={indForm.responsible} onChange={inf('responsible')} placeholder="Nom / Direction responsable"/>
+          </div>
+          <div>
+            <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Méthodologie & source</label>
+            <textarea value={indForm.methodology} onChange={e => inf('methodology')(e.target.value)} rows={3} placeholder="Source des données, méthode de calcul…"
+              style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+          </div>
+          <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, background:T.surface2, borderRadius:8, padding:'8px 12px' }}>
+            Cible 2034 : <strong style={{ color:T.teal }}>{editingInd?.target} {editingInd?.unit}</strong> · Baseline : <strong>{editingInd?.baseline} {editingInd?.unit}</strong>
+          </div>
+        </div>
+        <ModalFooter onCancel={() => setIndModal(false)} onConfirm={handleSaveInd} loading={savingInd} confirmLabel="Enregistrer"/>
+      </Modal>
+
+      {/* ── Modal évaluation ── */}
+      <Modal open={evalModal} onClose={() => setEvalModal(false)} title={editingEval ? `Modifier évaluation ${editingEval.annee}` : 'Nouvelle évaluation'} width={600}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Année *</label>
+              <Input value={evalForm.annee} onChange={ef('annee')} type="number" placeholder="2026"/>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Statut</label>
+              <Select value={evalForm.statut} onChange={ef('statut')} style={{ width:'100%' }}>
+                <option value="planifiee">Planifiée</option>
+                <option value="terminee">Terminée</option>
+              </Select>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Date</label>
+              <Input value={evalForm.date} onChange={ef('date')} type="date"/>
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Évaluateur</label>
+              <Input value={evalForm.evaluateur} onChange={ef('evaluateur')} placeholder="Cabinet / Institution"/>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Commanditaire</label>
+              <Input value={evalForm.commanditaire} onChange={ef('commanditaire')} placeholder="Ex: Ministère, PTF…"/>
+            </div>
+          </div>
+          {evalForm.statut === 'terminee' && (<>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Note globale (0–100)</label>
+              <Input value={evalForm.note_globale} onChange={ef('note_globale')} type="number" placeholder="75"/>
+            </div>
+            <div>
+              <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:T.textDim, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Notes par critère (0–100)</p>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
+                {[['pertinence','Pertinence'],['efficacite','Efficacité'],['efficience','Efficience'],['impact','Impact'],['durabilite','Durabilité']].map(([k,l]) => (
+                  <div key={k}>
+                    <label style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, display:'block', marginBottom:4 }}>{l}</label>
+                    <Input value={evalForm.notes[k]} onChange={enf(k)} type="number" placeholder="0"/>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Conclusions (une par ligne)</label>
+              <textarea value={evalForm.conclusions} onChange={e => ef('conclusions')(e.target.value)} rows={3}
+                style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+            </div>
+            <div>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Recommandations (une par ligne)</label>
+              <textarea value={evalForm.recommandations} onChange={e => ef('recommandations')(e.target.value)} rows={3}
+                style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+            </div>
+          </>)}
+          <div>
+            <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>{evalForm.statut === 'terminee' ? 'Alertes (une par ligne)' : 'Notes / Étapes planifiées (une par ligne)'}</label>
+            <textarea value={evalForm.alertes} onChange={e => ef('alertes')(e.target.value)} rows={3}
+              style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+          </div>
+        </div>
+        <ModalFooter onCancel={() => setEvalModal(false)} onConfirm={handleSaveEval} loading={savingEval} confirmLabel={editingEval ? 'Mettre à jour' : 'Créer'}/>
+      </Modal>
 
       {/* Modal revue */}
       <Modal open={revModal} onClose={() => setRevModal(false)} title={editingRev ? 'Modifier la revue' : 'Nouvelle revue'} width={520}>

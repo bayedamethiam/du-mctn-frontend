@@ -139,8 +139,11 @@ export const seApi = {
     a.download = name; a.target = '_blank';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   },
-  evaluations:     ()          => api.get('/se/evaluations'),
-  updateEvaluation:(id, d)     => api.put(`/se/evaluations/${id}`, d),
+  evaluations:        ()       => api.get('/se/evaluations'),
+  createEvaluation:   d        => api.post('/se/evaluations', d),
+  updateEvaluation:   (id, d)  => api.put(`/se/evaluations/${id}`, d),
+  deleteEvaluation:   id       => api.delete(`/se/evaluations/${id}`),
+  deleteRevue:        id       => api.delete(`/se/revues/${id}`),
 };
 
 // Instances internationales
