@@ -149,6 +149,7 @@ export const instancesApi = {
   get:                id            => api.get(`/instances/${id}`),
   create:             d             => api.post('/instances', d),
   update:             (id, d)       => api.put(`/instances/${id}`, d),
+  delete:             id            => api.delete(`/instances/${id}`),
   createContribution: (id, d)       => api.post(`/instances/${id}/contributions`, d),
   updateContribution: (id, cid, d)  => api.put(`/instances/${id}/contributions/${cid}`, d),
   deleteContribution: (id, cid)     => api.delete(`/instances/${id}/contributions/${cid}`),

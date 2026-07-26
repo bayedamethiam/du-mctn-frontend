@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AlertCircle, ChevronDown, ChevronUp, Award, Send, Plus, Pencil, Globe } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronUp, Award, Send, Plus, Pencil, Trash2, Globe } from 'lucide-react';
 import { instancesApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Btn, Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea } from '../components/UI.jsx';
@@ -149,6 +149,16 @@ export default function Instances({ embedded = false }) {
     finally { setSavingContrib(false); }
   };
 
+  const handleDeleteInst = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Supprimer cette instance ?')) return;
+    try {
+      await instancesApi.delete(id);
+      setItems(its => its.filter(i => i.id !== id));
+      if (selected === id) setSelected(null);
+    } catch (e) { setError(e.message); }
+  };
+
   const handleDeleteContrib = async (instId, contribId, e) => {
     e.stopPropagation();
     if (!window.confirm('Supprimer cette contribution ?')) return;
@@ -283,7 +293,10 @@ export default function Instances({ embedded = false }) {
                         <div style={{ fontFamily:'EB Garamond', fontSize:14, color:T.text, lineHeight:1.3, marginBottom:3 }}>{inst.name}</div>
                         <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{inst.siege} · Resp. {inst.responsible}</div>
                       </div>
-                      <button onClick={e => openEditInst(inst, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"><Pencil size={12}/></button>
+                      <button onClick={e => openEditInst(inst, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"
+                        onMouseEnter={e=>e.currentTarget.style.color=T.teal} onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}><Pencil size={12}/></button>
+                      <button onClick={e => handleDeleteInst(inst.id, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Supprimer"
+                        onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}><Trash2 size={12}/></button>
                       {isSel?<ChevronUp size={14} color={T.textDim}/>:<ChevronDown size={14} color={T.textDim}/>}
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px 14px', marginBottom:10 }}>

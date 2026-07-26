@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, List, Plus, X } from 'lucide-react';
-import { projectMeetingsApi, diligencesApi, audiencesApi, instancesApi, intlEventsApi } from '../api.js';
+import { projectMeetingsApi, diligencesApi, audiencesApi, instancesApi, intlEventsApi, partnershipsApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Spinner, ErrorBanner } from '../components/UI.jsx';
 import { T } from '../theme.js';
 
 const TYPES = {
-  meeting:   { color: '#06b6d4', label: 'RDV Projet'           },
-  diligence: { color: '#f59e0b', label: 'Échéance diligence'   },
-  audience:  { color: '#8b5cf6', label: 'Audience'             },
-  instance:  { color: '#10b981', label: 'Réunion internationale'},
-  evenement: { color: '#6366f1', label: 'Évén. int./nat./rég.' },
+  meeting:     { color: '#06b6d4', label: 'RDV Projet'           },
+  diligence:   { color: '#f59e0b', label: 'Échéance diligence'   },
+  audience:    { color: '#8b5cf6', label: 'Audience'             },
+  instance:    { color: '#10b981', label: 'Réunion internationale'},
+  partnership: { color: '#f97316', label: 'Réunion partenaire'   },
+  evenement:   { color: '#6366f1', label: 'Évén. int./nat./rég.' },
 };
 
 const EVT_TYPES  = ['Forum','Séminaire','Conférence','Atelier','RDV bilatéral','Réunion','Autre'];
@@ -43,12 +44,13 @@ export default function Calendrier() {
 
   const load = useCallback(async () => {
     try {
-      const [meetings, dils, auds, insts, evts] = await Promise.all([
+      const [meetings, dils, auds, insts, evts, parts] = await Promise.all([
         projectMeetingsApi.all(),
         diligencesApi.list(),
         audiencesApi.list(),
         instancesApi.list(),
         intlEventsApi.list(),
+        partnershipsApi.list(),
       ]);
 
       const ev = [
@@ -67,6 +69,11 @@ export default function Calendrier() {
         ...insts.filter(i => i.next_meeting_date).map(i => ({
           id: `i-${i.id}`, date: toYMD(i.next_meeting_date), time: '',
           title: i.next_meeting_label || `Réunion ${i.acronym}`, subtitle: i.acronym, type: 'instance', color: '#10b981',
+        })),
+        ...parts.filter(p => p.next_meeting_date).map(p => ({
+          id: `p-${p.id}`, date: toYMD(p.next_meeting_date), time: '',
+          title: p.next_meeting_label || `Réunion ${p.name}`, subtitle: p.name,
+          type: 'partnership', color: '#f97316',
         })),
         ...evts.map(e => ({
           id: `e-${e.id}`, _id: e.id, date: toYMD(e.date), time: e.time || '',

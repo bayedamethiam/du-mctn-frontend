@@ -22,7 +22,7 @@ const TYPES = [
 ];
 const FT = { pdf:{color:'#ef4444',label:'PDF'}, word:{color:'#3b82f6',label:'Word'}, excel:{color:'#10b981',label:'Excel'}, default:{color:T.textDim,label:'Doc'} };
 
-const EMPTY = { name:'', type:'bailleur', country:'', status:'actif', amount:'', contact:'', email:'', description:'', start_date:'', end_date:'', projects:[] };
+const EMPTY = { name:'', type:'bailleur', country:'', status:'actif', amount:'', contact:'', email:'', description:'', start_date:'', end_date:'', projects:[], next_meeting_date:'', next_meeting_label:'' };
 
 const Field = ({ label, children }) => (
   <div>
@@ -69,7 +69,7 @@ export default function Partenariats() {
     e.stopPropagation();
     const raw = Array.isArray(p.projects) ? p.projects : JSON.parse(p.projects || '[]');
     setEditing(p.id);
-    setForm({ name:p.name, type:p.type, country:p.country||'', status:p.status, amount:p.amount||'', contact:p.contact||'', email:p.email||'', description:p.description||'', start_date:p.start_date||'', end_date:p.end_date||'', projects: raw.map(String) });
+    setForm({ name:p.name, type:p.type, country:p.country||'', status:p.status, amount:p.amount||'', contact:p.contact||'', email:p.email||'', description:p.description||'', start_date:p.start_date||'', end_date:p.end_date||'', projects: raw.map(String), next_meeting_date:p.next_meeting_date||'', next_meeting_label:p.next_meeting_label||'' });
     setModal(true);
   };
 
@@ -77,7 +77,7 @@ export default function Partenariats() {
     if (!form.name || !form.type) return setError('Nom et type requis');
     setSaving(true);
     try {
-      const payload = { ...form, projects: JSON.stringify(form.projects) };
+      const payload = { ...form, projects: form.projects };
       if (editing) {
         const updated = await partnershipsApi.update(editing, payload);
         setItems(prev => prev.map(p => p.id === editing ? { ...p, ...updated } : p));
@@ -297,6 +297,13 @@ export default function Partenariats() {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <Field label="Date début"><Input value={form.start_date} onChange={v=>f('start_date',v)} type="date"/></Field>
             <Field label="Date fin"><Input value={form.end_date} onChange={v=>f('end_date',v)} type="date"/></Field>
+          </div>
+          <div style={{ borderTop:`1px solid ${T.border}`, paddingTop:12, marginTop:2 }}>
+            <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.2, textTransform:'uppercase', color:'#6366f1', marginBottom:10 }}>Prochaine réunion (calendrier)</p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Field label="Date de réunion"><Input value={form.next_meeting_date} onChange={v=>f('next_meeting_date',v)} type="date"/></Field>
+              <Field label="Libellé"><Input value={form.next_meeting_label} onChange={v=>f('next_meeting_label',v)} placeholder="Ex: Revue annuelle BM"/></Field>
+            </div>
           </div>
           <Field label={`Projets NDT associés ${form.projects.length > 0 ? `(${form.projects.length} sélectionné${form.projects.length > 1 ? 's' : ''})` : ''}`}>
             {allProjects.length === 0
