@@ -379,6 +379,36 @@ export default function SuiviEval() {
               ))}
             </div>
 
+            {/* Portefeuille NDT */}
+            {stats?.programs?.length > 0 && (
+              <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px 24px', marginBottom:28 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4 }}>
+                  <h3 style={{ fontFamily:'EB Garamond', fontSize:20, color:T.text, margin:0 }}>Portefeuille NDT — Avancement par programme</h3>
+                  <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:scoreColor(avgProg) }}>{avgProg}% moy.</span>
+                </div>
+                <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginBottom:16 }}>Progression basée sur le suivi réel des {stats.programs.length} programmes opérationnels</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {stats.programs.map(prog => {
+                    const scol = prog.status === 'on_track' ? '#10b981' : prog.status === 'attention' ? '#f59e0b' : '#ef4444';
+                    return (
+                      <div key={prog.code} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 13px', background:T.surface2, borderRadius:8, border:`1px solid ${T.border}` }}>
+                        <div style={{ width:36, height:36, borderRadius:7, background:`${scol}20`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${scol}30` }}>
+                          <span style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:800, color:scol }}>{prog.code}</span>
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textMuted, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prog.name}</div>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <div style={{ flex:1 }}><ProgressBar value={prog.progress} color={scol} height={4}/></div>
+                            <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:scol, flexShrink:0 }}>{prog.progress}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Catégories */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:28 }}>
               {CATS.slice(1).map(cat => {
@@ -545,7 +575,18 @@ export default function SuiviEval() {
                             <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:10 }}>Programme NDT associé</div>
                             <div style={{ background:`${cat.color}15`, border:`1px solid ${cat.color}25`, borderRadius:8, padding:'10px 14px' }}>
                               <span style={{ fontFamily:'DM Sans', fontSize:12, color:cat.color, fontWeight:600 }}>{ind.program || '—'}</span>
+                              {ind.program_name && <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textMuted, marginTop:3 }}>{ind.program_name}</div>}
                             </div>
+                            {ind.program_progress != null && (
+                              <div style={{ marginTop:10 }}>
+                                <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:6 }}>Avancement programme</div>
+                                <div style={{ display:'flex', alignItems:'baseline', gap:5, marginBottom:5 }}>
+                                  <span style={{ fontFamily:'EB Garamond', fontSize:24, fontWeight:500, color:scoreColor(ind.program_progress) }}>{ind.program_progress}%</span>
+                                  <span style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim }}>implémentation</span>
+                                </div>
+                                <ProgressBar value={ind.program_progress} color={scoreColor(ind.program_progress)} height={4}/>
+                              </div>
+                            )}
                             {ind.trend > 0 && (
                               <div style={{ marginTop:12 }}>
                                 <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:6 }}>Vitesse de progression</div>
