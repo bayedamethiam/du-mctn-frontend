@@ -1,4 +1,5 @@
 import { T, statusConf } from '../theme.js';
+import { useRefData } from '../context/RefContext.jsx';
 
 export const Card = ({ children, style = {}, hover = false, onClick }) => (
   <div onClick={onClick}
@@ -9,8 +10,13 @@ export const Card = ({ children, style = {}, hover = false, onClick }) => (
   </div>
 );
 
-export const Badge = ({ status, size = 'sm' }) => {
-  const c = statusConf[status] || { bg: T.surface2, color: T.textMuted, label: status };
+/* domain : référentiel (ref_lists) qui fournit libellé et couleur ; statusConf sert de repli */
+export const Badge = ({ status, domain, size = 'sm' }) => {
+  const ref = useRefData();
+  const it  = domain && ref?.item(domain, status);
+  const c = it
+    ? { bg: `${it.color || T.textMuted}26`, color: it.color || T.textMuted, label: it.label }
+    : statusConf[status] || { bg: T.surface2, color: T.textMuted, label: status };
   return (
     <span style={{ background: c.bg, color: c.color, padding: size === 'sm' ? '2px 8px' : '4px 12px', borderRadius: 20, fontSize: size === 'sm' ? 11 : 12, fontWeight: 600, fontFamily: 'DM Sans', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
       {c.label}
@@ -113,7 +119,7 @@ export const Modal = ({ open, onClose, title, children, width = 520 }) => {
 
 export const ModalFooter = ({ onCancel, onConfirm, confirmLabel = 'Enregistrer', loading, color = T.teal }) => (
   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-    <Btn onClick={onCancel} variant="outline" color={T.textMuted}>Annuler</Btn>
+    {onCancel && <Btn onClick={onCancel} variant="outline" color={T.textMuted}>Annuler</Btn>}
     <Btn onClick={onConfirm} disabled={loading} color={color}>
       {loading ? <Spinner size={14} color="#fff" /> : confirmLabel}
     </Btn>

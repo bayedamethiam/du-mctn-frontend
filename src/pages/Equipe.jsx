@@ -1,29 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, Phone, ChevronDown, ChevronUp, Plus, Pencil, Trash2, Users } from 'lucide-react';
-import { teamApi } from '../api.js';
+import { Mail, Phone, ChevronDown, ChevronUp, Plus, Pencil, Trash2, Users, RotateCcw, UserCheck } from 'lucide-react';
+import { api, teamApi, programsApi, usersApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea, Btn, EmptyState } from '../components/UI.jsx';
 import { T } from '../theme.js';
+import { useRefData } from '../context/RefContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { can } from '../permissions.js';
 
 const COLORS = ['#06b6d4','#10b981','#8b5cf6','#f59e0b','#3b82f6','#ec4899','#ef4444','#f97316'];
-const LEVELS = [
-  { v:'1', l:'Niveau 1 — Direction' },
-  { v:'2', l:'Niveau 2 — Coordinateur' },
-  { v:'3', l:'Niveau 3 — Chargé de mission' },
-  { v:'4', l:'Niveau 4 — Assistant' },
-];
-const POLES = [
-  { v:'Direction',         color:'#06b6d4' },
-  { v:'Projets NDT',       color:'#8b5cf6' },
-  { v:'Suivi-Évaluation',  color:'#10b981' },
-  { v:'DPI',               color:'#f59e0b' },
-  { v:'e-Gov',             color:'#3b82f6' },
-  { v:'Services',          color:'#ec4899' },
-  { v:'Autre',             color:'#6b7280' },
-];
-const EMPTY = { name:'', role:'', level:'3', department:'', initials:'', color:'#06b6d4', expertise:'', email:'', phone:'', bio:'' };
+/* Libellé unique des membres sans pôle (vues Hiérarchie et Pôles) */
+const NO_POLE = 'Sans pôle';
+const EMPTY = { name:'', role:'', level:'', department:'', initials:'', color:'#06b6d4', expertise:'', email:'', phone:'', bio:'', user_id:'' };
+const lbl = { fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 };
+const parseExpertise = m => { if (Array.isArray(m.expertise)) return m.expertise; try { const a = JSON.parse(m.expertise_json || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
 
 export default function Equipe() {
+  const ref = useRefData();
+  const { user } = useAuth();
+  const canManage = can(user, 'director');
+
   const [members, setMembers]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -33,81 +29,138 @@ export default function Equipe() {
   const [editing, setEditing]   = useState(null);
   const [saving, setSaving]     = useState(false);
   const [form, setForm]         = useState(EMPTY);
+  const [formError, setFormError] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
+  const [programs, setPrograms] = useState([]);
+  const [users, setUsers]       = useState(null); // null = liste indisponible (droits) → champ masqué
 
   const load = useCallback(() => {
-    teamApi.list().then(setMembers).catch(e => setError(e.message)).finally(() => setLoading(false));
-  }, []);
+    // Inactifs inclus : réservé directeur / admin (api.js partagé non modifié → appel direct)
+    const list = showInactive && canManage ? api.get('/team?include_inactive=1') : teamApi.list();
+    list.then(setMembers).catch(e => setError(e.message)).finally(() => setLoading(false));
+  }, [showInactive, canManage]);
   useEffect(() => { load(); }, [load]);
 
-  const f = k => v => setForm(p => ({ ...p, [k]: v }));
+  useEffect(() => {
+    programsApi.list().then(setPrograms).catch(() => {});
+    if (canManage) usersApi.list().then(u => setUsers(Array.isArray(u) ? u : (u?.users || null))).catch(() => setUsers(null));
+  }, [canManage]);
 
-  const openCreate = () => { setForm(EMPTY); setEditing(null); setModal(true); };
+  const f = k => v => { setFormError(''); setForm(p => ({ ...p, [k]: v })); };
+
+  /* Référentiels */
+  const levelList = ref.list('team_level');
+  const poleList  = ref.list('team_pole');
+  const levelLabel = lv => ref.label('team_level', String(lv));
+  const poleColor  = pole => ref.item('team_pole', pole)?.color || '#6b7280';
+  const poleIdx    = pole => { const i = poleList.findIndex(p => p.code === pole); return i === -1 ? 999 : i; };
+  const byPoleOrder = (a, b) => poleIdx(a) - poleIdx(b) || String(a).localeCompare(String(b));
+  const programOf  = tag => programs.find(p => String(p.code).toLowerCase() === String(tag).trim().toLowerCase());
+
+  /* Niveau par défaut d'un nouveau membre : avant-dernier niveau du référentiel (ex. « Chargé de mission »),
+     sinon le seul niveau disponible */
+  const defaultLevel = () => String((levelList.length >= 2 ? levelList[levelList.length - 2] : levelList[0])?.code ?? '');
+  const openCreate = () => { setForm({ ...EMPTY, level: defaultLevel() }); setFormError(''); setEditing(null); setModal(true); };
   const openEdit   = m => {
-    const expertise = Array.isArray(m.expertise) ? m.expertise : JSON.parse(m.expertise_json || '[]');
-    setForm({ name:m.name||'', role:m.role||'', level:String(m.level||3), department:m.department||'', initials:m.initials||'', color:m.color||'#06b6d4', expertise:expertise.join(', '), email:m.email||'', phone:m.phone||'', bio:m.bio||'' });
+    const expertise = parseExpertise(m);
+    setFormError('');
+    setForm({ name:m.name||'', role:m.role||'', level:m.level != null ? String(m.level) : defaultLevel(), department:m.department||'', initials:m.initials||'', color:m.color||'#06b6d4', expertise:expertise.join(', '), email:m.email||'', phone:m.phone||'', bio:m.bio||'', user_id:m.user_id||'' });
     setEditing(m); setModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.role) return;
+    if (!form.name.trim() || !form.role.trim()) return setFormError('Nom complet et fonction / rôle requis');
+    const level = parseInt(form.level, 10);
+    if (!Number.isInteger(level)) return setFormError(levelList.length ? 'Niveau hiérarchique requis' : 'Niveau hiérarchique requis — référentiel des niveaux vide (Administration › Référentiels)');
     setSaving(true);
     try {
-      const payload = { ...form, level: parseInt(form.level), expertise: form.expertise.split(',').map(s => s.trim()).filter(Boolean) };
+      const payload = { ...form, level, expertise: form.expertise.split(',').map(s => s.trim()).filter(Boolean) };
+      if (users === null) delete payload.user_id; // champ non modifiable sans accès à la liste des comptes
       if (editing) {
         const updated = await teamApi.update(editing.id, payload);
-        setMembers(ms => ms.map(m => m.id === editing.id ? updated : m));
+        if (updated) setMembers(ms => ms.map(m => m.id === editing.id ? updated : m)); else load();
       } else {
         const created = await teamApi.create(payload);
-        setMembers(ms => [...ms, created]);
+        if (created) setMembers(ms => [...ms, created]); else load();
       }
       setModal(false);
-    } catch (e) { setError(e.message); }
+    } catch (e) { setFormError(e.message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Supprimer ce membre ?')) return;
+    if (!window.confirm('Désactiver ce membre ?')) return;
     try {
       await teamApi.delete(id);
-      setMembers(ms => ms.filter(m => m.id !== id));
+      setMembers(ms => showInactive ? ms.map(m => m.id === id ? { ...m, is_active: 0 } : m) : ms.filter(m => m.id !== id));
       if (selected === id) setSelected(null);
     } catch (e) { setError(e.message); }
   };
 
-  const byLevel = members.reduce((acc, m) => { (acc[m.level] = acc[m.level] || []).push(m); return acc; }, {});
-  const byPole  = members.reduce((acc, m) => { const k = m.department || 'Non assigné'; (acc[k] = acc[k] || []).push(m); return acc; }, {});
-  const poleCount = Object.keys(byPole).length;
+  const handleReactivate = async (id, e) => {
+    e.stopPropagation();
+    try {
+      const updated = await teamApi.update(id, { is_active: 1 });
+      if (updated) setMembers(ms => ms.map(m => m.id === id ? updated : m)); else load();
+    } catch (e) { setError(e.message); }
+  };
+
+  const isActive = m => m.is_active === undefined || Number(m.is_active) === 1;
+  const active   = members.filter(isActive);
+  const byLevel  = members.reduce((acc, m) => { (acc[m.level] = acc[m.level] || []).push(m); return acc; }, {});
+  const byPole   = members.reduce((acc, m) => { const k = m.department || NO_POLE; (acc[k] = acc[k] || []).push(m); return acc; }, {});
+  const poleCount  = new Set(active.map(m => m.department || NO_POLE)).size;
+  const levelCount = new Set(active.map(m => String(m.level))).size;
+  const topLevel   = members.length ? Math.min(...members.map(m => Number(m.level) || 99)) : 1;
 
   const MemberCard = ({ member, featured = false }) => {
     const isSel     = selected === member.id;
-    const expertise = Array.isArray(member.expertise) ? member.expertise : JSON.parse(member.expertise_json || '[]');
+    const inactive  = !isActive(member);
+    const expertise = parseExpertise(member);
+    const account   = users && member.user_id ? users.find(u => String(u.id) === String(member.user_id)) : null;
     return (
       <div onClick={() => setSelected(isSel ? null : member.id)}
-        style={{ background:T.surface, border:`1px solid ${isSel?member.color:T.border}`, borderRadius:featured?14:12, padding:featured?'22px 24px':'16px 18px', cursor:'pointer', transition:'all 0.2s', marginBottom:10, boxShadow:isSel?`0 0 0 1px ${member.color}44, 0 8px 30px ${member.color}22`:'' }}>
+        style={{ background:T.surface, border:`1px solid ${isSel?member.color:T.border}`, borderRadius:featured?14:12, padding:featured?'22px 24px':'16px 18px', cursor:'pointer', transition:'all 0.2s', marginBottom:10, opacity: inactive ? 0.5 : 1, boxShadow:isSel?`0 0 0 1px ${member.color}44, 0 8px 30px ${member.color}22`:'' }}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:featured?18:14 }}>
           <div style={{ flexShrink:0, width:featured?56:44, height:featured?56:44, borderRadius:'50%', background:`linear-gradient(135deg,${member.color}44,${member.color}22)`, border:`2px solid ${member.color}66`, display:'flex', alignItems:'center', justifyContent:'center' }}>
             <span style={{ fontFamily:'DM Sans', fontWeight:700, fontSize:featured?18:14, color:member.color }}>{member.initials}</span>
           </div>
           <div style={{ flex:1 }}>
-            <div style={{ fontFamily:'EB Garamond', fontSize:featured?20:16, fontWeight:500, color:T.text, lineHeight:1.2 }}>{member.name}</div>
+            <div style={{ fontFamily:'EB Garamond', fontSize:featured?20:16, fontWeight:500, color:T.text, lineHeight:1.2 }}>
+              {member.name}
+              {inactive && <span style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:700, color:T.textDim, background:T.surface2, borderRadius:4, padding:'1px 6px', marginLeft:8, verticalAlign:'middle' }}>INACTIF</span>}
+            </div>
             <div style={{ fontFamily:'DM Sans', fontSize:featured?12:11, color:member.color, fontWeight:600, marginTop:2 }}>{member.role}</div>
             <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
-              {expertise.slice(0, featured?4:2).map((e,i) => <span key={i} style={{ background:`${member.color}15`, color:member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4 }}>{e}</span>)}
+              {expertise.slice(0, featured?4:2).map((e,i) => { const pg = programOf(e); return (
+                <span key={i} title={pg ? `${pg.code} · ${pg.name}` : undefined} style={{ background:`${member.color}15`, color:member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4, cursor: pg ? 'help' : undefined }}>{e}</span>
+              ); })}
             </div>
           </div>
           <div style={{ display:'flex', gap:2, alignItems:'center' }} onClick={e => e.stopPropagation()}>
-            <button onClick={e => { e.stopPropagation(); openEdit(member); }} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"><Pencil size={12}/></button>
-            <button onClick={e => handleDelete(member.id, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Supprimer"><Trash2 size={12}/></button>
+            {canManage && <button onClick={e => { e.stopPropagation(); openEdit(member); }} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"><Pencil size={12}/></button>}
+            {canManage && (inactive
+              ? <button onClick={e => handleReactivate(member.id, e)} style={{ background:'none', border:'none', color:'#10b981', cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Réactiver"><RotateCcw size={12}/></button>
+              : <button onClick={e => handleDelete(member.id, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Désactiver"><Trash2 size={12}/></button>)}
             {isSel ? <ChevronUp size={14} color={T.textMuted}/> : <ChevronDown size={14} color={T.textMuted}/>}
           </div>
         </div>
         {isSel && (
           <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${T.border}` }} className="slide-in">
-            <p style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, lineHeight:1.7, marginBottom:12 }}>{member.bio}</p>
+            {member.bio && <p style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, lineHeight:1.7, marginBottom:12 }}>{member.bio}</p>}
+            {expertise.length > 0 && (
+              <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:12 }}>
+                {expertise.map((e,i) => { const pg = programOf(e); return (
+                  <span key={i} style={{ background:`${pg?.color || member.color}15`, color:pg?.color || member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4 }}>{pg ? `${pg.code} · ${pg.name}` : e}</span>
+                ); })}
+              </div>
+            )}
             <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
+              <span style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{levelLabel(member.level)}</span>
               {member.email && <a href={`mailto:${member.email}`} style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'DM Sans', fontSize:11, color:T.teal, textDecoration:'none' }}><Mail size={12}/> {member.email}</a>}
               {member.phone && <div style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'DM Sans', fontSize:11, color:T.textDim }}><Phone size={12}/> {member.phone}</div>}
+              {account && <div style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'DM Sans', fontSize:11, color:T.textDim }}><UserCheck size={12}/> Compte : {account.email || account.name}</div>}
             </div>
           </div>
         )}
@@ -123,41 +176,48 @@ export default function Equipe() {
     </div>
   );
 
+  const knownPoles = poleList.map(p => p.code);
+  const orgName = ref.setting('org_name'), ministryShort = ref.setting('ministry_short');
+
   return (
     <div className="fade-in">
-      <HeroBanner eyebrow="Unité de Livraison · MCTN" title="Équipe & Organisation"
-        subtitle="Ministère de la Communication, des Télécommunications et du Numérique"
-        stats={[{ value:members.length, label:'Membres' }, { value:'4', label:'Niveaux' }, { value:poleCount, label:'Pôles actifs', color:'#10b981' }]} />
+      <HeroBanner eyebrow={[orgName, ministryShort].filter(Boolean).join(' · ')} title="Équipe & Organisation"
+        subtitle={ref.setting('ministry_name')}
+        stats={[{ value:active.length, label:'Membres' }, { value:levelCount, label:'Niveaux' }, { value:poleCount, label:'Pôles actifs', color:'#10b981' }]} />
       <div style={{ padding:28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, gap:12, flexWrap:'wrap' }}>
           <div style={{ display:'flex', background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}` }}>
             {[['hierarchy','Hiérarchie'],['pole','Pôles'],['grid','Grille']].map(([v,l]) => (
               <button key={v} onClick={() => setViewMode(v)} style={{ fontFamily:'DM Sans', fontSize:12, fontWeight:500, padding:'7px 16px', borderRadius:6, border:'none', background:viewMode===v?T.teal:'transparent', color:viewMode===v?'#fff':T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>{l}</button>
             ))}
           </div>
-          <Btn onClick={openCreate} color={T.teal}><Plus size={14}/> Nouveau membre</Btn>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            {canManage && (
+              <label style={{ display:'flex', alignItems:'center', gap:6, fontFamily:'DM Sans', fontSize:12, color:T.textMuted, cursor:'pointer' }}>
+                <input type="checkbox" checked={showInactive} onChange={e => { setShowInactive(e.target.checked); setLoading(true); }} style={{ accentColor:T.teal, cursor:'pointer' }}/>
+                Afficher les inactifs
+              </label>
+            )}
+            {canManage && <Btn onClick={openCreate} color={T.teal}><Plus size={14}/> Nouveau membre</Btn>}
+          </div>
         </div>
 
         {loading
           ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner size={36}/></div>
           : members.length === 0
-          ? <EmptyState icon={Users} title="Aucun membre" subtitle="Ajoutez des membres à l'équipe en cliquant sur « Nouveau membre »." />
+          ? <EmptyState icon={Users} title="Aucun membre" subtitle={canManage ? "Ajoutez des membres à l'équipe en cliquant sur « Nouveau membre »." : undefined} />
           : viewMode === 'hierarchy'
           ? (() => {
-              // Build pole map: pole → members by level
-              const poleOrder = POLES.map(p => p.v);
-              const polesUsed = [...new Set(members.filter(m => m.level > 1).map(m => m.department || 'Autre'))].sort((a, b) => {
-                const ai = poleOrder.indexOf(a); const bi = poleOrder.indexOf(b);
-                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-              });
+              // Pôles triés selon le référentiel (position), pôles inconnus en fin
+              const polesUsed = [...new Set(members.filter(m => m.level > topLevel).map(m => m.department || NO_POLE))].sort(byPoleOrder);
               return (
                 <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
                   {/* Direction */}
                   <div>
-                    <Divider label="Direction" color={T.teal}/>
+                    <Divider label={levelLabel(topLevel)} color={T.teal}/>
                     <div style={{ maxWidth:480, margin:'0 auto' }}>
-                      {(byLevel[1]||[]).map(m => <MemberCard key={m.id} member={m} featured/>)}
+                      {(byLevel[topLevel]||[]).map(m => <MemberCard key={m.id} member={m} featured/>)}
                     </div>
                   </div>
                   {/* Connecteur */}
@@ -172,19 +232,20 @@ export default function Equipe() {
                       <Divider label="Pôles" color="#8b5cf6"/>
                       <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(polesUsed.length, 3)},1fr)`, gap:16 }}>
                         {polesUsed.map(pole => {
-                          const pColor = POLES.find(p => p.v === pole)?.color || '#6b7280';
-                          const poleMembers = members.filter(m => (m.department || 'Autre') === pole && m.level > 1)
+                          const pColor = poleColor(pole);
+                          const poleMembers = members.filter(m => (m.department || NO_POLE) === pole && m.level > topLevel)
                             .sort((a, b) => a.level - b.level);
                           if (poleMembers.length === 0) return null;
+                          const secondLevel = Math.min(...poleMembers.map(m => m.level));
                           return (
                             <div key={pole} style={{ background:T.surface, border:`1px solid ${pColor}33`, borderRadius:12, padding:'16px 16px 12px', borderTop:`3px solid ${pColor}` }}>
                               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                                 <div style={{ width:8, height:8, borderRadius:'50%', background:pColor }}/>
-                                <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:pColor }}>{pole}</span>
+                                <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:pColor }}>{ref.label('team_pole', pole)}</span>
                                 <span style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, marginLeft:'auto' }}>{poleMembers.length} membre{poleMembers.length > 1 ? 's' : ''}</span>
                               </div>
                               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                                {poleMembers.map(m => <MemberCard key={m.id} member={m} featured={m.level === 2}/>)}
+                                {poleMembers.map(m => <MemberCard key={m.id} member={m} featured={m.level === secondLevel && secondLevel === topLevel + 1}/>)}
                               </div>
                             </div>
                           );
@@ -197,16 +258,13 @@ export default function Equipe() {
             })()
           : viewMode === 'pole'
           ? <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-              {Object.entries(byPole).sort(([a],[b]) => {
-                const ai = POLES.findIndex(p => p.v === a); const bi = POLES.findIndex(p => p.v === b);
-                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-              }).map(([pole, mems]) => {
-                const pColor = POLES.find(p => p.v === pole)?.color || '#6b7280';
+              {Object.entries(byPole).sort(([a],[b]) => byPoleOrder(a, b)).map(([pole, mems]) => {
+                const pColor = poleColor(pole);
                 return (
                   <div key={pole}>
                     <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, paddingBottom:10, borderBottom:`1px solid ${T.border}` }}>
                       <div style={{ width:3, height:20, background:pColor, borderRadius:2 }}/>
-                      <div style={{ fontFamily:'EB Garamond', fontSize:17, color:pColor, fontWeight:500 }}>{pole}</div>
+                      <div style={{ fontFamily:'EB Garamond', fontSize:17, color:pColor, fontWeight:500 }}>{ref.label('team_pole', pole)}</div>
                       <div style={{ fontSize:11, color:T.textDim, fontFamily:'DM Sans', marginLeft:'auto' }}>{mems.length} membre{mems.length > 1 ? 's' : ''}</div>
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
@@ -226,39 +284,41 @@ export default function Equipe() {
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Nom complet *</label>
+              <label style={lbl}>Nom complet *</label>
               <Input value={form.name} onChange={f('name')} placeholder="Prénom Nom"/>
             </div>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Fonction / Rôle *</label>
+              <label style={lbl}>Fonction / Rôle *</label>
               <Input value={form.role} onChange={f('role')} placeholder="Ex: Coordonnateur S&E"/>
             </div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Niveau hiérarchique</label>
+              <label style={lbl}>Niveau hiérarchique *</label>
               <Select value={form.level} onChange={f('level')} style={{ width:'100%' }}>
-                {LEVELS.map(l => <option key={l.v} value={l.v}>{l.l}</option>)}
+                {!form.level && <option value="">—</option>}
+                {levelList.map(l => <option key={l.code} value={String(l.code)}>Niveau {l.code} — {l.label}</option>)}
+                {form.level && !levelList.some(l => String(l.code) === form.level) && <option value={form.level}>Niveau {form.level}</option>}
               </Select>
             </div>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Pôle</label>
+              <label style={lbl}>Pôle</label>
               <input list="poles-list" value={form.department} onChange={e => f('department')(e.target.value)} placeholder="Sélectionner ou saisir un pôle"
                 style={{ width:'100%', background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
               <datalist id="poles-list">
-                {POLES.map(p => <option key={p.v} value={p.v}/>)}
+                {poleList.map(p => <option key={p.code} value={p.code}>{p.label !== p.code ? p.label : undefined}</option>)}
                 {/* pôles déjà utilisés par l'équipe */}
-                {[...new Set(members.map(m => m.department).filter(Boolean))].filter(d => !POLES.find(p => p.v === d)).map(d => <option key={d} value={d}/>)}
+                {[...new Set(members.map(m => m.department).filter(Boolean))].filter(d => !knownPoles.includes(d)).map(d => <option key={d} value={d}/>)}
               </datalist>
             </div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Initiales</label>
+              <label style={lbl}>Initiales</label>
               <Input value={form.initials} onChange={f('initials')} placeholder="Ex: MD"/>
             </div>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Couleur</label>
+              <label style={lbl}>Couleur</label>
               <div style={{ display:'flex', gap:7, flexWrap:'wrap', paddingTop:4 }}>
                 {COLORS.map(c => (
                   <button key={c} onClick={() => f('color')(c)} style={{ width:26, height:26, borderRadius:'50%', background:c, border:form.color===c?'3px solid white':'2px solid transparent', cursor:'pointer', transition:'all 0.15s', outline:'none' }}/>
@@ -267,24 +327,34 @@ export default function Equipe() {
             </div>
           </div>
           <div>
-            <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Expertises (séparées par des virgules)</label>
-            <Input value={form.expertise} onChange={f('expertise')} placeholder="Ex: Suivi-Évaluation, Indicateurs, Tableau de bord"/>
+            <label style={lbl}>Expertises (séparées par des virgules — les codes programme, ex. P08, sont reconnus)</label>
+            <Input value={form.expertise} onChange={f('expertise')} placeholder="Ex: Suivi-Évaluation, Indicateurs, P05"/>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Email</label>
-              <Input value={form.email} onChange={f('email')} placeholder="prenom.nom@mctn.sn" type="email"/>
+              <label style={lbl}>Email</label>
+              <Input value={form.email} onChange={f('email')} placeholder={`prenom.nom@${ref.setting('email_domain')}`} type="email"/>
             </div>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Téléphone</label>
-              <Input value={form.phone} onChange={f('phone')} placeholder="+221 77 000 00 00"/>
+              <label style={lbl}>Téléphone</label>
+              <Input value={form.phone} onChange={f('phone')} placeholder={`${ref.setting('phone_prefix')} 77 000 00 00`}/>
             </div>
           </div>
+          {users !== null && (
+            <div>
+              <label style={lbl}>Compte utilisateur associé</label>
+              <Select value={form.user_id} onChange={f('user_id')} style={{ width:'100%' }}>
+                <option value="">— Aucun —</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}{u.email ? ` · ${u.email}` : ''}</option>)}
+              </Select>
+            </div>
+          )}
           <div>
-            <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Biographie / Description du rôle</label>
+            <label style={lbl}>Biographie / Description du rôle</label>
             <Textarea value={form.bio} onChange={f('bio')} placeholder="Responsabilités et expériences du membre..." rows={3}/>
           </div>
         </div>
+        {formError && <div style={{ marginTop:14, padding:'9px 12px', borderRadius:8, background:'#ef444418', border:'1px solid #ef444440', color:'#ef4444', fontFamily:'DM Sans', fontSize:12 }}>{formError}</div>}
         <ModalFooter onCancel={() => setModal(false)} onConfirm={handleSave} loading={saving} confirmLabel={editing ? 'Mettre à jour' : 'Ajouter'}/>
       </Modal>
     </div>

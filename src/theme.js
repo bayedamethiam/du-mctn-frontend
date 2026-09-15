@@ -28,4 +28,14 @@ export const statusConf = {
   exploitation:  { bg: 'rgba(16,185,129,0.15)', color: '#10b981', label: 'Exploitation'     },
 };
 
-export const scoreColor = s => s >= 75 ? '#10b981' : s >= 50 ? '#06b6d4' : s >= 30 ? '#f59e0b' : '#ef4444';
+// Valeurs de repli si l'API /settings est indisponible (les valeurs réelles sont modifiables dans Administration)
+export const SETTINGS_FALLBACK = {
+  org_short_name: 'DU–MCTN', org_subtitle: 'Delivery Unit', org_name: 'Delivery Unit',
+  ministry_short: 'MCTN', ministry_name: 'Ministère de la Communication, des Télécommunications et du Numérique',
+  country: 'Sénégal', plan_name: 'New Deal Technologique', plan_short: 'NDT', plan_start: '2025', plan_end: '2034',
+  currency_unit: 'Md FCFA', email_domain: 'mctn.sn', phone_prefix: '+221',
+  score_thresholds: '[75,50,30]', alert_days: '3', program_progress_mode: 'manual',
+};
+
+// Obsolète : préférer useRefData().scoreColor (seuils paramétrables)
+export const scoreColor =s => s >= 75 ? '#10b981' : s >= 50 ? '#06b6d4' : s >= 30 ? '#f59e0b' : '#ef4444';

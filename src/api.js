@@ -9,23 +9,60 @@ export function setToken(t) {
 export function setUnauthCallback(fn) { _onUnauth = fn; }
 export function getToken() { return _token; }
 
-async function request(method, path, body, isForm = false) {
+const PUBLIC_PATHS = ['/auth/login', '/auth/refresh'];
+let _refreshing = null;
+
+/* Renouvelle l'access token avec le refresh token (un seul appel concurrent) */
+async function tryRefresh() {
+  const rt = localStorage.getItem('du_refresh');
+  if (!rt) return false;
+  _refreshing ||= fetch(`${BASE}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: rt }) })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d?.accessToken) { setToken(d.accessToken); return true; } return false; })
+    .catch(() => false)
+    .finally(() => { setTimeout(() => { _refreshing = null; }, 0); });
+  return _refreshing;
+}
+
+async function rawFetch(method, path, body, isForm) {
   const headers = {};
   if (_token) headers['Authorization'] = `Bearer ${_token}`;
-  if (!isForm) headers['Content-Type'] = 'application/json';
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: isForm ? body : body ? JSON.stringify(body) : undefined,
-  });
-  if (res.status === 401 || res.status === 403) {
-    setToken('');
-    if (_onUnauth) _onUnauth();
-    throw new Error('Session expirée. Veuillez vous reconnecter.');
+  if (!isForm && body !== undefined) headers['Content-Type'] = 'application/json';
+  return fetch(`${BASE}${path}`, { method, headers, body: isForm ? body : body !== undefined ? JSON.stringify(body) : undefined });
+}
+
+/* 401 sur une route protégée = session expirée → tentative de refresh, sinon déconnexion.
+ * 401 sur login = identifiants incorrects (message du serveur). 403 = droits insuffisants. */
+async function authFetch(method, path, body, isForm = false) {
+  let res = await rawFetch(method, path, body, isForm);
+  if (res.status === 401 && !PUBLIC_PATHS.includes(path)) {
+    if (await tryRefresh()) res = await rawFetch(method, path, body, isForm);
+    if (res.status === 401) {
+      setToken('');
+      localStorage.removeItem('du_refresh');
+      if (_onUnauth) _onUnauth();
+      throw new Error('Session expirée. Veuillez vous reconnecter.');
+    }
   }
+  return res;
+}
+
+async function request(method, path, body, isForm = false) {
+  const res  = await authFetch(method, path, body ?? undefined, isForm);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
   return data;
+}
+
+/* Téléchargement authentifié d'un fichier (les fichiers ne sont pas servis publiquement) */
+export async function downloadFile(path, name) {
+  const res = await authFetch('GET', path);
+  if (!res.ok) throw new Error('Téléchargement impossible');
+  const url = URL.createObjectURL(await res.blob());
+  const a   = document.createElement('a');
+  a.href = url; a.download = name || 'document';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export const api = {
@@ -98,19 +135,7 @@ export const partnershipsApi = {
   delete:      id             => api.delete(`/partnerships/${id}`),
   uploadDoc:   (id, file)     => api.upload(`/partnerships/${id}/documents`, file),
   deleteDoc:   (id, did)      => api.delete(`/partnerships/${id}/documents/${did}`),
-  downloadDoc: async (id, did, name) => {
-    const res = await fetch(`${BASE}/partnerships/${id}/documents/${did}/download`, {
-      headers: { Authorization: `Bearer ${_token}` },
-    });
-    if (!res.ok) throw new Error('Téléchargement impossible');
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  },
+  downloadDoc: (id, did, name) => downloadFile(`/partnerships/${id}/documents/${did}/download`, name),
 };
 
 // Audiences
@@ -128,17 +153,15 @@ export const seApi = {
   stats:           ()          => api.get('/se/stats'),
   indicators:      ()          => api.get('/se/indicators'),
   updateIndicator: (id, d)     => api.put(`/se/indicators/${id}`, d),
+  createIndicator: d           => api.post('/se/indicators', d),
+  deleteIndicator: id          => api.delete(`/se/indicators/${id}`),
+  setMilestones:   (id, list)  => api.put(`/se/indicators/${id}/milestones`, { milestones: list }),
   revues:          type        => api.get(`/se/revues${type ? '?type=' + type : ''}`),
   createRevue:     d           => api.post('/se/revues', d),
   updateRevue:     (id, d)     => api.put(`/se/revues/${id}`, d),
   uploadRevueDoc:  (id, f, tag)=> api.upload(`/se/revues/${id}/documents`, f, { tag }),
   deleteRevueDoc:  (rid, did)  => api.delete(`/se/revues/${rid}/documents/${did}`),
-  downloadRevueDoc:(rid, did, name) => {
-    const a = document.createElement('a');
-    a.href = `${BASE}/se/revues/${rid}/documents/${did}/download`;
-    a.download = name; a.target = '_blank';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  },
+  downloadRevueDoc:(rid, did, name) => downloadFile(`/se/revues/${rid}/documents/${did}/download`, name),
   evaluations:        ()       => api.get('/se/evaluations'),
   createEvaluation:   d        => api.post('/se/evaluations', d),
   updateEvaluation:   (id, d)  => api.put(`/se/evaluations/${id}`, d),
@@ -181,6 +204,29 @@ export const workflowTemplatesApi = {
   create: d         => api.post('/workflow-templates', d),
   update: (id, d)   => api.put(`/workflow-templates/${id}`, d),
   delete: id        => api.delete(`/workflow-templates/${id}`),
+};
+
+// Référentiels (listes paramétrables)
+export const refApi = {
+  list:   ()        => api.get('/ref'),
+  create: d         => api.post('/ref', d),
+  update: (id, d)   => api.put(`/ref/${id}`, d),
+  delete: id        => api.delete(`/ref/${id}`),
+};
+
+// Paramètres de l'organisation
+export const settingsApi = {
+  public: ()  => api.get('/settings/public'),
+  all:    ()  => api.get('/settings'),
+  update: d   => api.put('/settings', d),
+};
+
+// Utilisateurs (administration)
+export const usersApi = {
+  list:          ()        => api.get('/auth/users'),
+  create:        d         => api.post('/auth/users', d),
+  update:        (id, d)   => api.put(`/auth/users/${id}`, d),
+  resetPassword: (id, pwd) => api.post(`/auth/users/${id}/reset-password`, { password: pwd }),
 };
 
 // Équipe

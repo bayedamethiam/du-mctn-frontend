@@ -1,4 +1,7 @@
+import { useRefData } from '../context/RefContext.jsx';
+
 export default function LogoDU({ size = 'md' }) {
+  const ref = useRefData();
   const s = size === 'sm'
     ? { bar: 28, star: 9, title: 13, line: 1.5, sub: 7.5, gap: 3 }
     : { bar: 44, star: 13, title: 20, line: 2, sub: 10, gap: 5 };
@@ -16,7 +19,7 @@ export default function LogoDU({ size = 'md' }) {
         }}>★</span>
       </div>
 
-      {/* Texte DU–MTN */}
+      {/* Sigle (paramétrable) */}
       <div style={{
         fontFamily: 'DM Sans, sans-serif',
         fontSize: s.title,
@@ -25,7 +28,7 @@ export default function LogoDU({ size = 'md' }) {
         letterSpacing: 1,
         lineHeight: 1,
         textTransform: 'uppercase',
-      }}>DU–MTN</div>
+      }}>{ref?.setting('org_short_name') || 'DU–MCTN'}</div>
 
       {/* Ligne bleue */}
       <div style={{ width: s.bar * 2.8, height: s.line, background: '#3B82F6', borderRadius: 1 }} />
@@ -40,7 +43,7 @@ export default function LogoDU({ size = 'md' }) {
         textTransform: 'uppercase',
         textAlign: 'center',
         lineHeight: 1.2,
-      }}>Unité d'Appui Technique</div>
+      }}>{ref?.setting('org_subtitle') || 'Delivery Unit'}</div>
     </div>
   );
 }

@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, List, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, List, Plus, X, Pencil } from 'lucide-react';
 import { projectMeetingsApi, diligencesApi, audiencesApi, instancesApi, intlEventsApi, partnershipsApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Spinner, ErrorBanner } from '../components/UI.jsx';
 import { T } from '../theme.js';
+import { useRefData } from '../context/RefContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { can } from '../permissions.js';
 
 const TYPES = {
   meeting:     { color: '#06b6d4', label: 'RDV Projet'           },
@@ -14,11 +17,10 @@ const TYPES = {
   evenement:   { color: '#6366f1', label: 'Évén. int./nat./rég.' },
 };
 
-const EVT_TYPES  = ['Forum','Séminaire','Conférence','Atelier','RDV bilatéral','Réunion','Autre'];
-const EVT_LEVELS = ['international','national','régional'];
-
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const DAYS   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+/* Mois et jours localisés (Intl) — semaine commençant le lundi (01/01/2024 = lundi) */
+const cap    = s => s.charAt(0).toUpperCase() + s.slice(1);
+const MONTHS = Array.from({ length: 12 }, (_, i) => cap(new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(new Date(2024, i, 1))));
+const DAYS   = Array.from({ length: 7 }, (_, i) => cap(new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(new Date(2024, 0, 1 + i)).replace('.', '')));
 const toYMD  = d => d ? d.slice(0, 10) : '';
 
 const INP = {
@@ -31,7 +33,11 @@ const SEL = { ...INP, cursor: 'pointer' };
 const EMPTY_EVT = { title: '', date: '', time: '', type: 'Réunion', level: 'international', location: '', description: '' };
 
 export default function Calendrier() {
-  const [events, setEvents]       = useState([]);
+  const ref = useRefData();
+  const { user } = useAuth();
+  const canWrite  = can(user, 'analyst');
+  const canDelete = can(user, 'coordinator');
+  const [rawEvents, setEvents]    = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [mode, setMode]           = useState('month');
@@ -45,12 +51,12 @@ export default function Calendrier() {
   const load = useCallback(async () => {
     try {
       const [meetings, dils, auds, insts, evts, parts] = await Promise.all([
-        projectMeetingsApi.all(),
-        diligencesApi.list(),
-        audiencesApi.list(),
-        instancesApi.list(),
-        intlEventsApi.list(),
-        partnershipsApi.list(),
+        projectMeetingsApi.all().catch(() => []),
+        diligencesApi.list().catch(() => []),
+        audiencesApi.list().catch(() => []),
+        instancesApi.list().catch(() => []),
+        intlEventsApi.list().catch(() => []),
+        partnershipsApi.list().catch(() => []),
       ]);
 
       const ev = [
@@ -58,13 +64,14 @@ export default function Calendrier() {
           id: `m-${m.id}`, date: toYMD(m.date), time: m.time || '',
           title: m.title, subtitle: m.project_name || '', type: 'meeting', color: m.program_color || '#06b6d4',
         })),
-        ...dils.filter(d => d.deadline && d.status !== 'fait').map(d => ({
-          id: `d-${d.id}`, date: toYMD(d.deadline), time: '',
+        /* Statut conservé : les diligences clôturées (marqueur closed) sont filtrées au rendu, une fois les référentiels chargés */
+        ...dils.filter(d => d.deadline).map(d => ({
+          id: `d-${d.id}`, date: toYMD(d.deadline), time: '', dilStatus: d.status,
           title: d.title, subtitle: d.source, type: 'diligence', color: '#f59e0b',
         })),
         ...auds.filter(a => a.date).map(a => ({
           id: `a-${a.id}`, date: toYMD(a.date), time: a.time || '',
-          title: a.institution, subtitle: a.objet || '', type: 'audience', color: '#8b5cf6',
+          title: a.objet || a.institution, subtitle: a.objet ? a.institution : (a.contact || ''), type: 'audience', color: '#8b5cf6',
         })),
         ...insts.filter(i => i.next_meeting_date).map(i => ({
           id: `i-${i.id}`, date: toYMD(i.next_meeting_date), time: '',
@@ -77,7 +84,7 @@ export default function Calendrier() {
         })),
         ...evts.map(e => ({
           id: `e-${e.id}`, _id: e.id, date: toYMD(e.date), time: e.time || '',
-          title: e.title, subtitle: `${e.type} · ${e.level}${e.location ? ' · ' + e.location : ''}`,
+          title: e.title, subtitle: '', evt: e, description: e.description || '',
           type: 'evenement', color: '#6366f1',
         })),
       ].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
@@ -89,8 +96,14 @@ export default function Calendrier() {
 
   useEffect(() => { load(); }, [load]);
 
+  const events = useMemo(
+    () => rawEvents.filter(e => e.type !== 'diligence' || !ref.has('diligence_status', e.dilStatus, 'closed')),
+    [rawEvents, ref]
+  );
+
   const today    = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
-  const todayStr = toYMD(today.toISOString());
+  /* Clé du jour en date locale (toISOString décalerait selon le fuseau) */
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   const { year, month } = current;
   const firstDay    = new Date(year, month, 1);
@@ -113,7 +126,12 @@ export default function Calendrier() {
   const next    = () => setCurrent(c => c.month === 11 ? { year: c.year + 1, month: 0  } : { ...c, month: c.month + 1 });
   const goToday = () => { const d = new Date(); setCurrent({ year: d.getFullYear(), month: d.getMonth() }); setSelectedDay(null); };
 
-  const openCreate = (date = '') => { setForm({ ...EMPTY_EVT, date }); setEditEvt(null); setShowModal(true); };
+  const firstCode  = (domain, preferred) => { const l = ref.list(domain); return (l.find(i => i.code === preferred) || l[0])?.code || preferred; };
+  const openCreate = (date = '') => { setForm({ ...EMPTY_EVT, type: firstCode('event_type', EMPTY_EVT.type), level: firstCode('event_level', EMPTY_EVT.level), date }); setEditEvt(null); setShowModal(true); };
+  const openEdit   = e => { setForm({ title: e.title || '', date: toYMD(e.date), time: e.time || '', type: e.type || '', level: e.level || '', location: e.location || '', description: e.description || '' }); setEditEvt(e.id); setShowModal(true); };
+  /* Sous-titre des événements int./nat./rég. : libellés issus des référentiels */
+  const subOf = ev => ev.evt ? [ref.label('event_type', ev.evt.type), ref.label('event_level', ev.evt.level), ev.evt.location].filter(Boolean).join(' · ') : ev.subtitle;
+  const optsWith = (domain, code) => { const l = ref.list(domain); return code && !l.some(i => i.code === code) ? [...l, { code, label: code }] : l; };
 
   const saveEvt = async () => {
     if (!form.title.trim() || !form.date) { setError('Titre et date requis'); return; }
@@ -151,7 +169,7 @@ export default function Calendrier() {
           {ev.time && <span style={{ color: ev.color, marginRight: 3, fontWeight: 700 }}>{ev.time}</span>}
           {ev.title}
         </div>
-        {!compact && ev.subtitle && <div style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{ev.subtitle}</div>}
+        {!compact && subOf(ev) && <div style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{subOf(ev)}</div>}
       </div>
     </div>
   );
@@ -187,10 +205,10 @@ export default function Calendrier() {
                 </div>
 
                 {/* Bouton Nouvel événement */}
-                <button onClick={() => openCreate(selectedDay || todayStr)}
+                {canWrite && <button onClick={() => openCreate(selectedDay || todayStr)}
                   style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background:'#6366f1', color:'#fff', fontFamily:'DM Sans', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                   <Plus size={13}/> Nouvel événement
-                </button>
+                </button>}
 
                 {/* Légende */}
                 <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginLeft:'auto', alignItems:'center' }}>
@@ -253,10 +271,10 @@ export default function Calendrier() {
                         <div style={{ fontFamily:'EB Garamond', fontSize:16, color:T.teal }}>
                           {new Date(selectedDay + 'T12:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}
                         </div>
-                        <button onClick={() => openCreate(selectedDay)} title="Ajouter un événement ce jour"
+                        {canWrite && <button onClick={() => openCreate(selectedDay)} title="Ajouter un événement ce jour"
                           style={{ background:'#6366f122', border:'1px solid #6366f133', borderRadius:6, padding:'4px 8px', color:'#6366f1', cursor:'pointer', lineHeight:0 }}>
                           <Plus size={13}/>
-                        </button>
+                        </button>}
                       </div>
                       {selectedEvents.length === 0
                         ? <div style={{ fontFamily:'DM Sans', fontSize:12, color:T.textDim, fontStyle:'italic', padding:'12px 0' }}>Aucun événement ce jour</div>
@@ -267,15 +285,22 @@ export default function Calendrier() {
                                   <div style={{ width:8, height:8, borderRadius:'50%', background:ev.color, flexShrink:0 }} />
                                   <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color:ev.color, textTransform:'uppercase', letterSpacing:0.8 }}>{TYPES[ev.type]?.label}</span>
                                   {ev.time && <span style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, marginLeft:'auto' }}>{ev.time}</span>}
-                                  {ev.type === 'evenement' && ev._id && (
-                                    <button onClick={() => deleteEvt(ev._id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'0 2px', lineHeight:0, marginLeft:4 }}
+                                  {ev.type === 'evenement' && ev.evt && canWrite && (
+                                    <button onClick={() => openEdit(ev.evt)} title="Modifier" style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'0 2px', lineHeight:0, marginLeft: ev.time ? 4 : 'auto' }}
+                                      onMouseEnter={e => e.currentTarget.style.color=T.teal} onMouseLeave={e => e.currentTarget.style.color=T.textDim}>
+                                      <Pencil size={11}/>
+                                    </button>
+                                  )}
+                                  {ev.type === 'evenement' && ev._id && canDelete && (
+                                    <button onClick={() => deleteEvt(ev._id)} title="Supprimer" style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'0 2px', lineHeight:0, marginLeft:4 }}
                                       onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color=T.textDim}>
                                       <X size={11}/>
                                     </button>
                                   )}
                                 </div>
                                 <div style={{ fontFamily:'DM Sans', fontSize:13, fontWeight:600, color:T.text, marginBottom:2 }}>{ev.title}</div>
-                                {ev.subtitle && <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{ev.subtitle}</div>}
+                                {subOf(ev) && <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{subOf(ev)}</div>}
+                                {ev.description && <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textMuted, marginTop:5, lineHeight:1.5, whiteSpace:'pre-wrap' }}>{ev.description}</div>}
                               </div>
                             ))}
                           </div>
@@ -332,10 +357,10 @@ export default function Calendrier() {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={SEL}>
-                  {EVT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {optsWith('event_type', form.type).map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
                 </select>
                 <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={SEL}>
-                  {EVT_LEVELS.map(l => <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>)}
+                  {optsWith('event_level', form.level).map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
                 </select>
               </div>
               <input placeholder="Lieu / Ville" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} style={INP} />

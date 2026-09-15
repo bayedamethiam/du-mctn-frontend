@@ -39,12 +39,15 @@ export function AuthProvider({ children }) {
     const data = await authApi.login(email, password);
     setToken(data.accessToken);
     localStorage.setItem('du_refresh', data.refreshToken);
-    setUser(data.user);
-    return data.user;
+    const full = await authApi.me().catch(() => data.user);
+    setUser(full);
+    return full;
   };
 
+  const refreshUser = useCallback(async () => { setUser(await authApi.me()); }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

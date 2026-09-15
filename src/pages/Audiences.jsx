@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ChevronDown, ChevronUp, ArrowRight, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, ArrowRight, Calendar, Edit2, Trash2, Check, X } from 'lucide-react';
 import { audiencesApi, teamApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Btn, Select, Textarea, Spinner, ErrorBanner, Modal, ModalFooter } from '../components/UI.jsx';
-import { T, statusConf } from '../theme.js';
+import { T } from '../theme.js';
+import { useRefData } from '../context/RefContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { can } from '../permissions.js';
 
-const EMPTY = { institution: '', contact: '', date: '', time: '', objet: '', status: 'planifiee', priority: 'haute', suite_a_donner: '', followup_date: '', notes: '' };
+const EMPTY = { institution: '', contact: '', date: '', time: '', objet: '', status: '', priority: '', suite_a_donner: '', followup_date: '', notes: '' };
 
 const parseActions = a => {
   try {
@@ -14,40 +17,84 @@ const parseActions = a => {
   } catch (_) { return []; }
 };
 
-const ACT_ST = {
-  a_faire:  { label: 'À faire',  color: '#94a3b8' },
-  en_cours: { label: 'En cours', color: '#f59e0b' },
-  fait:     { label: 'Fait',     color: '#10b981' },
+/* Date locale (et non UTC) au format YYYY-MM-DD */
+const todayStr = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
+const inpStyle = {
+  background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6,
+  padding: '7px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none',
 };
-const CYCLE = { a_faire: 'en_cours', en_cours: 'fait', fait: 'a_faire' };
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const fieldLbl = { fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, display: 'block', marginBottom: 5 };
 
-function AudienceActions({ audience, onSave, teamMembers }) {
+/* Sélecteur responsable (membre d'équipe) : stocke responsible_id + responsible (nom, compatibilité) */
+const memberOf = (teamMembers, ac) =>
+  teamMembers.find(m => ac.responsible_id != null && String(m.id) === String(ac.responsible_id)) ||
+  teamMembers.find(m => ac.responsible && m.name === ac.responsible);
+
+function ResponsibleSelect({ value, onChange, teamMembers, style }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} style={{ ...inpStyle, cursor: 'pointer', ...style }}>
+      <option value="">— Responsable —</option>
+      {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name} · {m.role}</option>)}
+    </select>
+  );
+}
+
+function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
+  const ref = useRefData();
   const [title, setTitle]             = useState('');
   const [responsible, setResponsible] = useState('');
   const [deadline, setDeadline]       = useState('');
+  const [editAc, setEditAc]           = useState(null); // { id, title, responsible_id, deadline }
 
-  const actions = parseActions(audience);
-  const today   = todayStr();
-  const done    = actions.filter(ac => ac.status === 'fait').length;
+  const actions  = parseActions(audience);
+  const today    = todayStr();
+  const isDone   = code => ref.has('action_status', code, 'closed');
+  const done     = actions.filter(ac => isDone(ac.status)).length;
+  /* Cycle de statut : ordre du référentiel (statuts actifs) */
+  const stCodes  = ref.list('action_status').map(s => String(s.code));
+  const firstOpen = stCodes.find(c => !isDone(c)) ?? stCodes[0] ?? null;
+  const stOf     = code => ({ label: ref.label('action_status', code), color: ref.color('action_status', code, '#94a3b8') });
 
-  const isLate = ac => ac.deadline && ac.deadline < today && ac.status !== 'fait';
+  const isLate = ac => ac.deadline && ac.deadline < today && !isDone(ac.status);
+  const respFields = id => {
+    const m = teamMembers.find(x => String(x.id) === String(id));
+    return { responsible_id: m ? m.id : null, responsible: m ? m.name : '' };
+  };
 
   const add = () => {
     if (!title.trim()) return;
     onSave(audience, [
       ...actions,
-      { id: Date.now(), title: title.trim(), status: 'a_faire', deadline, responsible },
+      { id: Date.now(), title: title.trim(), status: firstOpen, deadline, ...respFields(responsible) },
     ]);
     setTitle(''); setResponsible(''); setDeadline('');
   };
 
-  const cycleAc  = id => onSave(audience, actions.map(ac => ac.id === id ? { ...ac, status: CYCLE[ac.status] || 'a_faire' } : ac));
+  const cycleAc  = id => {
+    if (!stCodes.length) return;
+    onSave(audience, actions.map(ac => {
+      if (ac.id !== id) return ac;
+      const i = stCodes.indexOf(String(ac.status));
+      return { ...ac, status: stCodes[(i + 1) % stCodes.length] };
+    }));
+  };
   const deleteAc = id => onSave(audience, actions.filter(ac => ac.id !== id));
-
-  const inpStyle = {
-    background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6,
-    padding: '7px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none',
+  const startEdit = ac => {
+    const sel = memberOf(teamMembers, ac)?.id ?? '';
+    setEditAc({ id: ac.id, title: ac.title || '', responsible_id: sel, initialSel: String(sel), deadline: ac.deadline || '', legacy: ac.responsible || '' });
+  };
+  const saveEdit = () => {
+    if (!editAc?.title.trim()) return;
+    onSave(audience, actions.map(ac => {
+      if (ac.id !== editAc.id) return ac;
+      // Sélection inchangée (membre désactivé absent de la liste active, ou texte libre historique) : responsable d'origine conservé (id + nom)
+      const unchanged = String(editAc.responsible_id) === editAc.initialSel;
+      const resp = unchanged
+        ? { responsible_id: ac.responsible_id ?? null, responsible: ac.responsible || '' }
+        : respFields(editAc.responsible_id);
+      return { ...ac, title: editAc.title.trim(), deadline: editAc.deadline, ...resp };
+    }));
+    setEditAc(null);
   };
 
   return (
@@ -63,23 +110,37 @@ function AudienceActions({ audience, onSave, teamMembers }) {
       )}
 
       {actions.map(ac => {
-        const st   = ACT_ST[ac.status] || ACT_ST.a_faire;
+        const st   = stOf(ac.status);
         const late = isLate(ac);
+        const respName = memberOf(teamMembers, ac)?.name || ac.responsible;
+        if (editAc?.id === ac.id) return (
+          <div key={ac.id} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
+            <input value={editAc.title} onChange={e => setEditAc(p => ({ ...p, title: e.target.value }))} onKeyDown={e => e.key === 'Enter' && saveEdit()}
+              placeholder="Titre de l'action *" style={inpStyle} autoFocus />
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <ResponsibleSelect value={editAc.responsible_id} onChange={v => setEditAc(p => ({ ...p, responsible_id: v }))} teamMembers={teamMembers} style={{ flex: 1 }} />
+              <input type="date" value={editAc.deadline} onChange={e => setEditAc(p => ({ ...p, deadline: e.target.value }))} style={{ ...inpStyle, width: 150 }} />
+              <button onClick={saveEdit} title="Enregistrer" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 4, lineHeight: 0 }}><Check size={14} /></button>
+              <button onClick={() => setEditAc(null)} title="Annuler" style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: 4, lineHeight: 0 }}><X size={14} /></button>
+            </div>
+            {editAc.legacy && !memberOf(teamMembers, ac) && String(editAc.responsible_id) === editAc.initialSel && <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>Responsable actuel (hors liste active) : {editAc.legacy}</span>}
+          </div>
+        );
         return (
           <div key={ac.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
-            <button onClick={() => cycleAc(ac.id)} title="Changer le statut"
-              style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${st.color}`, background: ac.status === 'fait' ? st.color : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-              {ac.status === 'fait' && <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
-              {ac.status === 'en_cours' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: st.color }} />}
+            <button onClick={() => canEdit && cycleAc(ac.id)} title="Changer le statut"
+              style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${st.color}`, background: isDone(ac.status) ? st.color : 'transparent', flexShrink: 0, cursor: canEdit ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+              {isDone(ac.status) && <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
+              {!isDone(ac.status) && ac.status !== firstOpen && <div style={{ width: 8, height: 8, borderRadius: '50%', background: st.color }} />}
             </button>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: ac.status === 'fait' ? T.textDim : T.text, textDecoration: ac.status === 'fait' ? 'line-through' : 'none' }}>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: isDone(ac.status) ? T.textDim : T.text, textDecoration: isDone(ac.status) ? 'line-through' : 'none' }}>
                 {ac.title}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 3, flexWrap: 'wrap' }}>
-                {ac.responsible && (
-                  <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>👤 {ac.responsible}</span>
+                {respName && (
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>👤 {respName}</span>
                 )}
                 {ac.deadline && (
                   <span style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: late ? 700 : 400, color: late ? '#ef4444' : T.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -91,43 +152,54 @@ function AudienceActions({ audience, onSave, teamMembers }) {
             </div>
 
             <span style={{ fontSize: 10, fontFamily: 'DM Sans', color: st.color, fontWeight: 600, minWidth: 55, textAlign: 'right', marginTop: 2 }}>{st.label}</span>
-            <button onClick={() => deleteAc(ac.id)}
-              style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: '2px 4px', lineHeight: 0, borderRadius: 4, marginTop: 2 }}
-              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-              onMouseLeave={e => e.currentTarget.style.color = T.textDim}>
-              <Trash2 size={11} />
-            </button>
+            {canEdit && <>
+              <button onClick={() => startEdit(ac)} title="Modifier"
+                style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: '2px 4px', lineHeight: 0, borderRadius: 4, marginTop: 2 }}
+                onMouseEnter={e => e.currentTarget.style.color = T.teal}
+                onMouseLeave={e => e.currentTarget.style.color = T.textDim}>
+                <Edit2 size={11} />
+              </button>
+              <button onClick={() => deleteAc(ac.id)} title="Supprimer"
+                style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: '2px 4px', lineHeight: 0, borderRadius: 4, marginTop: 2 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                onMouseLeave={e => e.currentTarget.style.color = T.textDim}>
+                <Trash2 size={11} />
+              </button>
+            </>}
           </div>
         );
       })}
 
       {/* Formulaire d'ajout */}
-      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="Titre de l'action *"
-            onKeyDown={e => e.key === 'Enter' && add()}
-            style={{ ...inpStyle, flex: 1 }} />
-          <button onClick={add}
-            style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans', cursor: 'pointer', flexShrink: 0 }}>
-            + Ajouter
-          </button>
+      {canEdit && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="Titre de l'action *"
+              onKeyDown={e => e.key === 'Enter' && add()}
+              style={{ ...inpStyle, flex: 1 }} />
+            <button onClick={add}
+              style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans', cursor: 'pointer', flexShrink: 0 }}>
+              + Ajouter
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <ResponsibleSelect value={responsible} onChange={setResponsible} teamMembers={teamMembers} style={{ flex: 1 }} />
+            <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
+              style={{ ...inpStyle, width: 150 }} />
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <select value={responsible} onChange={e => setResponsible(e.target.value)}
-            style={{ ...inpStyle, flex: 1, cursor: 'pointer' }}>
-            <option value="">— Responsable —</option>
-            {teamMembers.map(m => <option key={m.id} value={m.name}>{m.name} · {m.role}</option>)}
-          </select>
-          <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
-            style={{ ...inpStyle, width: 150 }} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 export default function Audiences() {
+  const ref = useRefData();
+  const { user } = useAuth();
+  const canWrite  = can(user, 'analyst');
+  const canDelete = can(user, 'director');
+
   const [items, setItems]           = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -147,13 +219,35 @@ export default function Audiences() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const statusList   = ref.list('audience_status');
+  const priorityList = ref.list('priority');
+  const isHeld    = code => ref.has('audience_status', code, 'held');
+  const isOpen    = code => ref.has('audience_status', code, 'open');
+  const isActDone = code => ref.has('action_status', code, 'closed');
+  const firstHeld   = statusList.find(s => isHeld(s.code))?.code ?? ref.codes('audience_status', 'held')[0];
+  const firstOpenSt = statusList.find(s => isOpen(s.code))?.code ?? ref.codes('audience_status', 'open')[0];
+
+  /* Filtres générés depuis les référentiels : s:<statut>, p:<priorité> (priorités affichées si utilisées) */
+  const filters = [
+    ['all', 'Toutes'],
+    ...statusList.map(s => [`s:${s.code}`, s.label]),
+    ['suivi', 'Suites à donner'],
+    ...priorityList.filter(p => items.some(a => a.priority === p.code)).map(p => [`p:${p.code}`, p.label]),
+  ];
+
   const filtered = items.filter(a => {
-    if (filter === 'suivi')  return a.status === 'tenue' && a.suite_a_donner;
+    if (filter === 'suivi')  return isHeld(a.status) && a.suite_a_donner;
     if (filter === 'all')    return true;
-    return a.status === filter || a.priority === filter;
+    if (filter.startsWith('s:')) return a.status === filter.slice(2);
+    if (filter.startsWith('p:')) return a.priority === filter.slice(2);
+    return true;
   });
 
-  const openCreate = () => { setForm(EMPTY); setEditId(null); setShowModal(true); };
+  const openCreate = () => {
+    const defPriority = priorityList.find(p => ref.has('priority', p.code, 'high'))?.code || priorityList[0]?.code || '';
+    setForm({ ...EMPTY, status: firstOpenSt || statusList[0]?.code || '', priority: defPriority });
+    setEditId(null); setShowModal(true);
+  };
   const openEdit   = a  => {
     setForm({ institution: a.institution, contact: a.contact || '', date: a.date || '', time: a.time || '', objet: a.objet || '', status: a.status, priority: a.priority, suite_a_donner: a.suite_a_donner || '', followup_date: a.followup_date || '', notes: a.notes || '' });
     setEditId(a.id);
@@ -166,10 +260,10 @@ export default function Audiences() {
     try {
       if (editId) {
         const u = await audiencesApi.update(editId, form);
-        setItems(prev => prev.map(a => a.id === editId ? u : a));
+        if (u) setItems(prev => prev.map(a => a.id === editId ? u : a)); else load();
       } else {
         const n = await audiencesApi.create(form);
-        setItems(prev => [n, ...prev]);
+        if (n) setItems(prev => [n, ...prev]); else load();
       }
       setShowModal(false);
     } catch (e) { setError(e.message); }
@@ -178,29 +272,43 @@ export default function Audiences() {
 
   const toggleStatus = async a => {
     try {
-      const u = await audiencesApi.updateStatus(a.id, a.status === 'tenue' ? 'planifiee' : 'tenue');
-      setItems(prev => prev.map(i => i.id === a.id ? u : i));
+      const next = isHeld(a.status) ? firstOpenSt : firstHeld;
+      if (!next) return setError("Référentiel des statuts d'audience incomplet");
+      const u = await audiencesApi.updateStatus(a.id, next);
+      if (u) setItems(prev => prev.map(i => i.id === a.id ? u : i)); else load();
+    } catch (e) { setError(e.message); }
+  };
+
+  const remove = async a => {
+    if (!window.confirm(`Supprimer l'audience « ${a.institution} » ?`)) return;
+    try {
+      await audiencesApi.delete(a.id);
+      setItems(prev => prev.filter(i => i.id !== a.id));
+      if (expanded === a.id) setExpanded(null);
     } catch (e) { setError(e.message); }
   };
 
   const saveActions = async (audience, actions) => {
     try {
       const u = await audiencesApi.update(audience.id, { actions_json: JSON.stringify(actions) });
-      setItems(prev => prev.map(i => i.id === audience.id ? u : i));
+      if (u) setItems(prev => prev.map(i => i.id === audience.id ? u : i)); else load();
     } catch (e) { setError(e.message); }
   };
 
   const today = todayStr();
   const allActions = items.flatMap(parseActions);
-  const lateActions = allActions.filter(ac => ac.deadline && ac.deadline < today && ac.status !== 'fait');
+  const lateActions = allActions.filter(ac => ac.deadline && ac.deadline < today && !isActDone(ac.status));
   const counts = {
     total: items.length,
-    planifiees: items.filter(a => a.status === 'planifiee').length,
-    tenues: items.filter(a => a.status === 'tenue').length,
-    suivi: items.filter(a => a.status === 'tenue' && a.suite_a_donner).length,
-    actions: allActions.filter(ac => ac.status !== 'fait').length,
+    planifiees: items.filter(a => isOpen(a.status)).length,
+    tenues: items.filter(a => isHeld(a.status)).length,
+    suivi: items.filter(a => isHeld(a.status) && a.suite_a_donner).length,
+    actions: allActions.filter(ac => !isActDone(ac.status)).length,
     lateActions: lateActions.length,
   };
+
+  const inputStyle = { background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none', width: '100%' };
+  const withCurrent = (list, code) => list.some(i => i.code === code) || !code ? list : [...list, { code, label: code }];
 
   return (
     <div className="fade-in">
@@ -218,11 +326,11 @@ export default function Audiences() {
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
-            {[['all','Toutes'],['planifiee','Planifiées'],['tenue','Tenues'],['suivi','Suites à donner'],['critique','Critiques']].map(([v,l]) => (
+            {filters.map(([v,l]) => (
               <Btn key={v} onClick={() => setFilter(v)} variant={filter === v ? 'ghost' : 'outline'} color={filter === v ? '#8b5cf6' : T.textDim} size="sm">{l}</Btn>
             ))}
           </div>
-          <Btn onClick={openCreate} color="#8b5cf6"><Plus size={14} /> Nouvelle audience</Btn>
+          {canWrite && <Btn onClick={openCreate} color="#8b5cf6"><Plus size={14} /> Nouvelle audience</Btn>}
         </div>
         {loading
           ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={36} /></div>
@@ -230,22 +338,22 @@ export default function Audiences() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {filtered.map(a => {
                 const isExp = expanded === a.id;
-                const sc    = statusConf[a.status] || {};
+                const stColor = ref.color('audience_status', a.status, T.textDim);
                 return (
                   <Card key={a.id}>
                     <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }} onClick={() => setExpanded(isExp ? null : a.id)}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: sc.color || T.textDim, flexShrink: 0 }} />
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: stColor, flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <h4 style={{ fontFamily: 'EB Garamond', fontSize: 17, color: T.text }}>{a.institution}</h4>
-                          <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim }}>— {a.contact}</span>
-                          <Badge status={a.priority} /><Badge status={a.status} />
+                          {a.contact && <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim }}>— {a.contact}</span>}
+                          <Badge status={a.priority} domain="priority" /><Badge status={a.status} domain="audience_status" />
                         </div>
                         <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted, marginTop: 3 }}>{a.objet}</div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>{a.date}</span>
-                        {a.suite_a_donner && a.status === 'tenue' && <span style={{ fontFamily: 'DM Sans', fontSize: 9, fontWeight: 700, color: '#8b5cf6' }}>● SUITE</span>}
+                        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>{a.date}{a.time ? ` · ${a.time}` : ''}</span>
+                        {a.suite_a_donner && isHeld(a.status) && <span style={{ fontFamily: 'DM Sans', fontSize: 9, fontWeight: 700, color: '#8b5cf6' }}>● SUITE</span>}
                       </div>
                       {isExp ? <ChevronUp size={16} color={T.textMuted} /> : <ChevronDown size={16} color={T.textMuted} />}
                     </div>
@@ -262,14 +370,15 @@ export default function Audiences() {
                           <div>
                             <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: T.textDim, marginBottom: 8 }}>Notes</div>
                             <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>{a.notes || <span style={{ color: T.textDim, fontStyle: 'italic' }}>Aucune note</span>}</p>
-                            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                              <Btn onClick={() => openEdit(a)} variant="outline" color={T.teal} size="sm"><Edit2 size={12} /> Modifier</Btn>
-                              <Btn onClick={() => toggleStatus(a)} variant="outline" color={sc.color} size="sm">{a.status === 'tenue' ? '↩ Planifiée' : '✓ Tenue'}</Btn>
+                            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {canWrite && <Btn onClick={() => openEdit(a)} variant="outline" color={T.teal} size="sm"><Edit2 size={12} /> Modifier</Btn>}
+                              {canWrite && <Btn onClick={() => toggleStatus(a)} variant="outline" color={stColor} size="sm">{isHeld(a.status) ? `↩ ${ref.label('audience_status', firstOpenSt)}` : `✓ ${ref.label('audience_status', firstHeld)}`}</Btn>}
+                              {canDelete && <Btn onClick={() => remove(a)} variant="outline" color="#ef4444" size="sm"><Trash2 size={12} /> Supprimer</Btn>}
                             </div>
                           </div>
                         </div>
 
-                        <AudienceActions audience={a} onSave={saveActions} teamMembers={teamMembers} />
+                        <AudienceActions audience={a} onSave={saveActions} teamMembers={teamMembers} canEdit={canWrite} />
                       </div>
                     )}
                   </Card>
@@ -281,20 +390,30 @@ export default function Audiences() {
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? "Modifier l'audience" : 'Nouvelle audience'} width={560}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <input placeholder="Institution *" value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
-            <input placeholder="Contact" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
+            <input placeholder="Institution *" value={form.institution} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} style={inputStyle} />
+            <input placeholder="Contact" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} style={inputStyle} />
           </div>
-          <input placeholder="Objet de l'audience" value={form.objet} onChange={e => setForm(f => ({ ...f, objet: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
+          <input placeholder="Objet de l'audience" value={form.objet} onChange={e => setForm(f => ({ ...f, objet: e.target.value }))} style={inputStyle} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr 1fr', gap: 12 }}>
-            <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
-            <input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none', width: 110 }} />
-            <Select value={form.priority} onChange={v => setForm(f => ({ ...f, priority: v }))}><option value="critique">Critique</option><option value="haute">Haute</option><option value="moyenne">Moyenne</option></Select>
-            <Select value={form.status}   onChange={v => setForm(f => ({ ...f, status:   v }))}><option value="planifiee">Planifiée</option><option value="tenue">Tenue</option></Select>
+            <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inputStyle} />
+            <input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} style={{ ...inputStyle, width: 110 }} />
+            <Select value={form.priority} onChange={v => setForm(f => ({ ...f, priority: v }))}>
+              {withCurrent(priorityList, form.priority).map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+            </Select>
+            <Select value={form.status}   onChange={v => setForm(f => ({ ...f, status:   v }))}>
+              {withCurrent(statusList, form.status).map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
+            </Select>
           </div>
           <Textarea placeholder="Suite à donner…"  value={form.suite_a_donner} onChange={v => setForm(f => ({ ...f, suite_a_donner: v }))} rows={2} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <input type="date" value={form.followup_date} onChange={e => setForm(f => ({ ...f, followup_date: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
-            <Textarea placeholder="Notes de réunion" value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} rows={2} />
+            <div>
+              <label style={fieldLbl}>Échéance de la suite</label>
+              <input type="date" value={form.followup_date} onChange={e => setForm(f => ({ ...f, followup_date: e.target.value }))} style={inputStyle} />
+            </div>
+            <div>
+              <label style={fieldLbl}>Notes</label>
+              <Textarea placeholder="Notes de réunion" value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} rows={2} />
+            </div>
           </div>
         </div>
         <ModalFooter onCancel={() => setShowModal(false)} onConfirm={save} loading={saving} color="#8b5cf6" />

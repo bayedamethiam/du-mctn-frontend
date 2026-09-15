@@ -10,7 +10,10 @@ import Audiences    from './pages/Audiences.jsx';
 import SuiviEval    from './pages/SuiviEval.jsx';
 import Equipe       from './pages/Equipe.jsx';
 import Calendrier   from './pages/Calendrier.jsx';
+import Administration from './pages/Administration.jsx';
+import AccountModal from './components/AccountModal.jsx';
 import { dashboardApi } from './api.js';
+import { can } from './permissions.js';
 import { Spinner } from './components/UI.jsx';
 import { T } from './theme.js';
 
@@ -20,6 +23,7 @@ const VIEWS = {
   audiences: Audiences, se: SuiviEval,
   equipe: Equipe,
   calendrier: Calendrier,
+  admin: Administration,
 };
 
 export default function App() {
@@ -45,10 +49,11 @@ export default function App() {
 
   if (!user) return <Login />;
 
-  const V = VIEWS[view] || Dashboard;
+  const V = (view === 'admin' && !can(user, 'director')) ? Dashboard : (VIEWS[view] || Dashboard);
   return (
     <Layout view={view} setView={setView} alerts={alerts}>
       <V />
+      <AccountModal open={!!user.must_change_password} forced onClose={() => window.location.reload()} />
     </Layout>
   );
 }

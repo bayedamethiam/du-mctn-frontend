@@ -1,23 +1,28 @@
 import { useState } from 'react';
-import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, AlertCircle, LogOut, ChevronDown, CalendarDays } from 'lucide-react';
+import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2, Users, AlertCircle, LogOut, ChevronDown, CalendarDays, Settings, UserCog } from 'lucide-react';
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useRefData } from '../context/RefContext.jsx';
+import { can } from '../permissions.js';
 import LogoDU from './LogoDU.jsx';
-
-const NAV = [
-  { id: 'dashboard',    icon: BarChart3,     label: 'Dashboard' },
-  { id: 'portefeuille', icon: FolderKanban,  label: 'Portefeuille NDT' },
-  { id: 'diligences',   icon: FileText,      label: 'Diligences' },
-  { id: 'partenariats', icon: Handshake,     label: 'Partenariats' },
-  { id: 'audiences',    icon: MessageSquare, label: 'Audiences' },
-  { id: 'se',           icon: BarChart2,     label: 'Suivi-Évaluation' },
-  { id: 'equipe',       icon: Users,         label: 'Équipe & DU' },
-  { id: 'calendrier',  icon: CalendarDays,  label: 'Calendrier' },
-];
+import AccountModal from './AccountModal.jsx';
 
 export default function Layout({ view, setView, alerts, children }) {
   const { user, logout } = useAuth();
+  const ref = useRefData();
   const [menu, setMenu]  = useState(false);
+  const [account, setAccount] = useState(false);
+  const NAV = [
+    { id: 'dashboard',    icon: BarChart3,     label: 'Dashboard' },
+    { id: 'portefeuille', icon: FolderKanban,  label: `Portefeuille ${ref.setting('plan_short')}` },
+    { id: 'diligences',   icon: FileText,      label: 'Diligences' },
+    { id: 'partenariats', icon: Handshake,     label: 'Partenariats' },
+    { id: 'audiences',    icon: MessageSquare, label: 'Audiences' },
+    { id: 'se',           icon: BarChart2,     label: 'Suivi-Évaluation' },
+    { id: 'equipe',       icon: Users,         label: 'Équipe' },
+    { id: 'calendrier',   icon: CalendarDays,  label: 'Calendrier' },
+    ...(can(user, 'director') ? [{ id: 'admin', icon: Settings, label: 'Administration' }] : []),
+  ];
   const urgDil = alerts?.critical_diligences?.length || 0;
   const pendAud = alerts?.pending_audience_followups?.length || 0;
 
@@ -43,7 +48,7 @@ export default function Layout({ view, setView, alerts, children }) {
                 </div>
                 <div>
                   <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: T.text }}>{user?.name}</div>
-                  <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>{user?.role} · DU</div>
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>{ref.label('user_role', user?.role)}{user?.department ? ` · ${user.department}` : ''}</div>
                 </div>
                 <ChevronDown size={14} color={T.textDim} />
               </div>
@@ -53,6 +58,12 @@ export default function Layout({ view, setView, alerts, children }) {
                     <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>Connecté en tant que</div>
                     <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: T.text }}>{user?.email}</div>
                   </div>
+                  <button onClick={() => { setAccount(true); setMenu(false); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'transparent', border: 'none', color: T.text, fontSize: 13, fontFamily: 'DM Sans', cursor: 'pointer', borderRadius: 7, textAlign: 'left' }}
+                    onMouseEnter={e => e.currentTarget.style.background = T.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <UserCog size={14} /> Mon compte
+                  </button>
                   <button onClick={() => { logout(); setMenu(false); }}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'transparent', border: 'none', color: '#ef4444', fontSize: 13, fontFamily: 'DM Sans', cursor: 'pointer', borderRadius: 7, textAlign: 'left' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
@@ -80,6 +91,7 @@ export default function Layout({ view, setView, alerts, children }) {
         </div>
       </div>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>{children}</div>
+      <AccountModal open={account} onClose={() => setAccount(false)} />
     </div>
   );
 }
