@@ -20,7 +20,7 @@ const parseActions = a => {
 /* Date locale (et non UTC) au format YYYY-MM-DD */
 const todayStr = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
 const inpStyle = {
-  background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6,
+  background: T.field, border: `1px solid ${T.border}`, borderRadius: 6,
   padding: '7px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none',
 };
 const fieldLbl = { fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, display: 'block', marginBottom: 5 };
@@ -307,7 +307,7 @@ export default function Audiences() {
     lateActions: lateActions.length,
   };
 
-  const inputStyle = { background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none', width: '100%' };
+  const inputStyle = { background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none', width: '100%' };
   const withCurrent = (list, code) => list.some(i => i.code === code) || !code ? list : [...list, { code, label: code }];
 
   return (

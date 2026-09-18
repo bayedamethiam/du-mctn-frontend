@@ -36,7 +36,7 @@ function CopyBtn({ text, label = 'Copier' }) {
 const codeInput = (value, onChange, { placeholder = '000000', numeric = false } = {}) => (
   <input type="text" inputMode={numeric ? "numeric" : "text"} autoComplete="one-time-code" maxLength={9} value={value} placeholder={placeholder}
     onChange={e => onChange(e.target.value.toUpperCase().replace(/[^0-9A-Z-]/g, '').slice(0, 9))}
-    style={{ width: '100%', background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 14px', color: T.text, fontSize: 16, fontFamily: 'monospace', letterSpacing: 4, outline: 'none' }} />
+    style={{ width: '100%', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 14px', color: T.text, fontSize: 16, fontFamily: 'monospace', letterSpacing: 4, outline: 'none' }} />
 );
 
 /* ── Changement de mot de passe ───────────────────────────────── */
@@ -97,7 +97,7 @@ function RecoveryCodes({ codes, onAck }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
         {codes.map(c => (
-          <div key={c} style={{ fontFamily: 'monospace', fontSize: 15, letterSpacing: 1.5, color: T.text, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px 12px', textAlign: 'center' }}>{c}</div>
+          <div key={c} style={{ fontFamily: 'monospace', fontSize: 15, letterSpacing: 1.5, color: T.text, background: T.field, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px 12px', textAlign: 'center' }}>{c}</div>
         ))}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -156,7 +156,7 @@ function MfaSetupFlow({ onEnabled, onCancel, autoStart = false }) {
         {setup.qr_data_url && <img src={setup.qr_data_url} alt="QR code 2FA" width={168} height={168} style={{ background: '#fff', padding: 8, borderRadius: 8 }} />}
         <div style={{ flex: 1, minWidth: 200 }}>
           <label style={lbl}>Clé secrète (saisie manuelle)</label>
-          <div style={{ fontFamily: 'monospace', fontSize: 13, color: T.text, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px 10px', wordBreak: 'break-all', marginBottom: 6 }}>{setup.secret}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: 13, color: T.text, background: T.field, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px 10px', wordBreak: 'break-all', marginBottom: 6 }}>{setup.secret}</div>
           <CopyBtn text={setup.secret} label="Copier la clé" />
         </div>
       </div>

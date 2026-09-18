@@ -362,7 +362,7 @@ export default function Partenariats() {
             <Field label="Montant"><Input value={form.amount_value} onChange={v=>f('amount_value',v)} type="number" placeholder="150000000"/></Field>
             <Field label="Devise">
               <input list="du-currencies" value={form.currency} onChange={e=>f('currency',e.target.value)} placeholder={currencies[0]}
-                style={{ width:'100%', background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
+                style={{ width:'100%', background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
               <datalist id="du-currencies">{currencies.map(c => <option key={c} value={c}/>)}</datalist>
             </Field>
             <Field label="Détail"><Input value={form.amount} onChange={v=>f('amount',v)} placeholder="Ex: 923M FCFA/an, Technique…"/></Field>

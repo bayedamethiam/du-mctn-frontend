@@ -26,7 +26,7 @@ const parseList = v => { if (Array.isArray(v)) return v; try { const a = JSON.pa
 /* Saisie entière (les scores sont stockés en INTEGER) */
 const IntInput = ({ value, onChange, max, placeholder }) => (
   <input type="number" step={1} min={0} max={max} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
-    style={{ width:'100%', background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
+    style={{ width:'100%', background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
 );
 
 const Gauge = ({ value, size=52, color }) => {

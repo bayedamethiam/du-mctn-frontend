@@ -4,6 +4,8 @@ export const T = {
   text: '#ffffff', textMuted: 'rgba(255,255,255,0.65)', textDim: 'rgba(255,255,255,0.38)',
   success: '#10b981', warning: '#f59e0b', danger: '#ef4444', purple: '#8b5cf6',
   navyMid: '#0a1628',
+  panel: '#0d1f3c',            // fond opaque des fenêtres d'édition (au-dessus du voile sombre)
+  field: '#13294a',            // fond opaque des champs de saisie
 };
 
 export const statusConf = {

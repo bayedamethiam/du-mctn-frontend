@@ -304,7 +304,7 @@ export default function Equipe() {
             <div>
               <label style={lbl}>Pôle</label>
               <input list="poles-list" value={form.department} onChange={e => f('department')(e.target.value)} placeholder="Sélectionner ou saisir un pôle"
-                style={{ width:'100%', background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
+                style={{ width:'100%', background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 14px', color:T.text, fontSize:13, fontFamily:'DM Sans', outline:'none' }}/>
               <datalist id="poles-list">
                 {poleList.map(p => <option key={p.code} value={p.code}>{p.label !== p.code ? p.label : undefined}</option>)}
                 {/* pôles déjà utilisés par l'équipe */}

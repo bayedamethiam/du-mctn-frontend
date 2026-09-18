@@ -24,7 +24,7 @@ const DAYS   = Array.from({ length: 7 }, (_, i) => cap(new Intl.DateTimeFormat('
 const toYMD  = d => d ? d.slice(0, 10) : '';
 
 const INP = {
-  background: T.surface2, border: `1px solid ${T.border}`,
+  background: T.field, border: `1px solid ${T.border}`,
   borderRadius: 8, padding: '10px 12px', color: T.text,
   fontSize: 13, fontFamily: 'DM Sans', outline: 'none', width: '100%', boxSizing: 'border-box',
 };
@@ -343,8 +343,8 @@ export default function Calendrier() {
 
       {/* ── Modal Nouvel événement ── */}
       {showModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div style={{ background:'#0d1f3c', border:'1px solid rgba(255,255,255,0.12)', borderRadius:14, padding:28, width:520, maxHeight:'90vh', overflowY:'auto' }} className="slide-in">
+        <div style={{ position:'fixed', inset:0, background:'rgba(3,8,20,0.82)', backdropFilter:'blur(3px)', WebkitBackdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+          <div style={{ background:T.panel, border:'1px solid rgba(255,255,255,0.12)', borderRadius:14, padding:28, width:520, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 60px rgba(0,0,0,0.55)' }} className="slide-in">
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <h2 style={{ fontFamily:'EB Garamond', fontSize:22, color:T.text }}>{editEvt ? 'Modifier l\'événement' : 'Nouvel événement'}</h2>
               <button onClick={() => setShowModal(false)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', lineHeight:0 }}><X size={18}/></button>

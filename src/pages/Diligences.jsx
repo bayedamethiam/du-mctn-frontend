@@ -15,7 +15,7 @@ const isLateWith = closed => d => {
   return new Date(d.deadline) < today;
 };
 
-const fieldStyle = { width: '100%', background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 14px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' };
+const fieldStyle = { width: '100%', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 14px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' };
 
 export default function Diligences() {
   const { user } = useAuth();
@@ -200,7 +200,7 @@ export default function Diligences() {
             <datalist id="dil-team">{teamNames.map(n => <option key={n} value={n} />)}</datalist>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <input type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
+            <input type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} style={{ background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
             <Select value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}>
               {withCurrent(statuses, form.status).map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
             </Select>

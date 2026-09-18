@@ -70,7 +70,7 @@ const IND_EMPTY  = { code:'', label:'', category:'', unit:'', baseline:'', targe
 const EVAL_EMPTY = { annee: new Date().getFullYear(), statut:'', evaluateur:'', commanditaire:'', date:'', note_globale:'', description:'', notes:{}, conclusions:'', recommandations:'', alertes:'' };
 
 const lbl = { fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 };
-const taStyle = { background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' };
+const taStyle = { background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' };
 
 /* ── Gauge circulaire ──────────────────────────────────────── */
 const Gauge = ({ value, size = 52 }) => {
@@ -1046,7 +1046,7 @@ export default function SuiviEval() {
           <div>
             <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Méthodologie & source</label>
             <textarea value={indForm.methodology} onChange={e => inf('methodology')(e.target.value)} rows={3} placeholder="Source des données, méthode de calcul…"
-              style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+              style={{ background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
           </div>
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
@@ -1122,18 +1122,18 @@ export default function SuiviEval() {
             <div>
               <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Conclusions (une par ligne)</label>
               <textarea value={evalForm.conclusions} onChange={e => ef('conclusions')(e.target.value)} rows={3}
-                style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+                style={{ background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
             </div>
             <div>
               <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Recommandations (une par ligne)</label>
               <textarea value={evalForm.recommandations} onChange={e => ef('recommandations')(e.target.value)} rows={3}
-                style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+                style={{ background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
             </div>
           </>)}
           <div>
             <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>{ref.has('evaluation_status', evalForm.statut, 'closed') ? 'Alertes (une par ligne)' : 'Notes / Étapes planifiées (une par ligne)'}</label>
             <textarea value={evalForm.alertes} onChange={e => ef('alertes')(e.target.value)} rows={3}
-              style={{ background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
+              style={{ background: T.field, border:`1px solid ${T.border}`, borderRadius:8, padding:'10px 12px', color:T.text, fontSize:13, fontFamily:'DM Sans', width:'100%', boxSizing:'border-box', resize:'vertical' }}/>
           </div>
         </div>
         <ModalFooter onCancel={() => setEvalModal(false)} onConfirm={handleSaveEval} loading={savingEval} confirmLabel={editingEval ? 'Mettre à jour' : 'Créer'}/>

@@ -34,7 +34,7 @@ export const Input = ({ placeholder, value, onChange, icon: Icon, style = {}, ty
   <div style={{ position: 'relative', ...style }}>
     {Icon && <Icon size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textDim, pointerEvents: 'none' }} />}
     <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-      style={{ width: '100%', background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: `10px ${Icon ? 36 : 14}px 10px ${Icon ? 36 : 14}px`, color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
+      style={{ width: '100%', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: `10px ${Icon ? 36 : 14}px 10px ${Icon ? 36 : 14}px`, color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' }} />
   </div>
 );
 
@@ -50,7 +50,7 @@ if (typeof document !== 'undefined' && !document.getElementById('du-select-style
   const s = document.createElement('style');
   s.id = 'du-select-style';
   s.textContent = `
-    select option { background: #0d1b30; color: #ffffff; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+    select option { background: #13294a; color: #ffffff; font-family: 'DM Sans', sans-serif; font-size: 13px; }
     select option:disabled { color: rgba(255,255,255,0.38); }
     select:focus { border-color: rgba(6,182,212,0.6) !important; box-shadow: 0 0 0 3px rgba(6,182,212,0.12); }
   `;
@@ -62,7 +62,7 @@ export const Select = ({ value, onChange, children, style = {} }) => (
     <select value={value} onChange={e => onChange(e.target.value)}
       style={{
         width: '100%', appearance: 'none', WebkitAppearance: 'none',
-        background: '#0d1b30', border: `1px solid ${T.border}`, borderRadius: 8,
+        background: T.field, border: `1px solid ${T.border}`, borderRadius: 8,
         padding: '10px 36px 10px 12px', color: value === '' ? T.textDim : T.text,
         fontSize: 13, fontFamily: 'DM Sans', outline: 'none', cursor: 'pointer',
         lineHeight: '1.5', transition: 'border-color .2s, box-shadow .2s',
@@ -79,7 +79,7 @@ export const Select = ({ value, onChange, children, style = {} }) => (
 
 export const Textarea = ({ value, onChange, placeholder, rows = 3, style = {} }) => (
   <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-    style={{ width: '100%', background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', resize: 'vertical', outline: 'none', ...style }} />
+    style={{ width: '100%', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', resize: 'vertical', outline: 'none', ...style }} />
 );
 
 export const Spinner = ({ size = 20, color = T.teal }) => (
@@ -104,9 +104,10 @@ export const EmptyState = ({ icon: Icon, title, subtitle }) => (
 export const Modal = ({ open, onClose, title, children, width = 520 }) => {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(3,8,20,0.82)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <Card style={{ width, maxHeight: '90vh', overflowY: 'auto', padding: 28 }}>
+      {/* fond opaque : la page ne doit pas transparaître derrière le formulaire */}
+      <Card style={{ width, maxHeight: '90vh', overflowY: 'auto', padding: 28, background: T.panel, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 24px 60px rgba(0,0,0,0.55)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ fontFamily: 'EB Garamond', fontSize: 22, color: T.text }}>{title}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: T.textMuted, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
