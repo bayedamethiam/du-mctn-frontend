@@ -14,8 +14,8 @@ const FALLBACK_PHASES = [
   { key: 'maturation',    label: 'Maturation',    color: '#8b5cf6', weight: 20, start_date: '', end_date: '', progress: 0 },
   { key: 'execution',     label: 'Exécution',     color: '#06b6d4', weight: 70, start_date: '', end_date: '', progress: 0 },
 ];
-/* Libellé d'un statut de clôture de projet (setting project_closed_statuses) */
-const closedLabel = code => code === 'cloture' ? 'Clôturé' : String(code || '').charAt(0).toUpperCase() + String(code || '').slice(1);
+
+
 
 const AX_COLORS = ['#3b82f6','#14b8a6','#f59e0b','#a78bfa','#10b981','#ef4444','#8b5cf6','#06b6d4'];
 
@@ -649,7 +649,7 @@ export default function Portefeuille() {
                 {(projForm.phases || []).map(ph => <option key={ph.key} value={ph.key}>{ph.label}</option>)}
               </optgroup>
               <optgroup label="Clôture">
-                {closedStatuses.map(c => <option key={c} value={c}>{closedLabel(c)}</option>)}
+                {closedStatuses.map(c => <option key={c} value={c}>{ref.label('project_status', c)}</option>)}
               </optgroup>
               {projForm.status && !(projForm.phases || []).some(ph => ph.key === projForm.status) && !closedStatuses.includes(projForm.status) &&
                 <option value={projForm.status}>{projForm.status}</option>}
@@ -1075,7 +1075,7 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
                     const activePh = phases[phIdx];
                     const closed   = closedStatuses.includes(proj.status);
                     const late     = !closed && isProjectLate(phases);
-                    const stLabel  = activePh?.label || (closed ? closedLabel(proj.status) : proj.status);
+                    const stLabel  = activePh?.label || (closed ? ref.label('project_status', proj.status) : proj.status);
                     const pct = proj.progress || 0;
                     const pc  = activePh?.color || '#06b6d4';
                     return (

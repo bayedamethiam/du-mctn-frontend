@@ -53,7 +53,11 @@ export default function App() {
   return (
     <Layout view={view} setView={setView} alerts={alerts}>
       <V />
-      <AccountModal open={!!user.must_change_password} forced onClose={() => window.location.reload()} />
+      {user.must_change_password
+        ? <AccountModal open forced="password" onClose={() => window.location.reload()} />
+        : user.mfa_setup_required
+          ? <AccountModal open forced="mfa" onClose={() => window.location.reload()} />
+          : null}
     </Layout>
   );
 }

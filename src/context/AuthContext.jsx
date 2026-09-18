@@ -8,7 +8,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(async () => {
-    try { await authApi.logout(localStorage.getItem('du_refresh')); } catch {}
+    const rt = localStorage.getItem('du_refresh');
+    try { if (rt) await authApi.logout(rt); } catch {}
     setToken('');
     localStorage.removeItem('du_refresh');
     setUser(null);
@@ -25,8 +26,9 @@ export function AuthProvider({ children }) {
         try {
           const rt = localStorage.getItem('du_refresh');
           if (rt) {
-            const { accessToken } = await authApi.refresh(rt);
+            const { accessToken, refreshToken } = await authApi.refresh(rt);
             setToken(accessToken);
+            if (refreshToken) localStorage.setItem('du_refresh', refreshToken);
             setUser(await authApi.me());
           }
         } catch { setToken(''); }
@@ -35,19 +37,29 @@ export function AuthProvider({ children }) {
     init();
   }, []);
 
-  const login = async (email, password) => {
-    const data = await authApi.login(email, password);
+  /* Enregistre les jetons d'une connexion réussie et charge le profil complet */
+  const completeLogin = useCallback(async data => {
     setToken(data.accessToken);
-    localStorage.setItem('du_refresh', data.refreshToken);
+    if (data.refreshToken) localStorage.setItem('du_refresh', data.refreshToken);
     const full = await authApi.me().catch(() => data.user);
     setUser(full);
     return full;
+  }, []);
+
+  /* Renvoie { mfa_required, mfaToken } sans connecter l'utilisateur si un code 2FA est requis */
+  const login = async (email, password) => {
+    const data = await authApi.login(email, password);
+    if (data.mfa_required) return { mfa_required: true, mfaToken: data.mfaToken };
+    const full = await completeLogin(data);
+    return { mfa_required: false, user: full };
   };
+
+  const verifyMfa = async (mfaToken, code) => completeLogin(await authApi.verifyMfa(mfaToken, code));
 
   const refreshUser = useCallback(async () => { setUser(await authApi.me()); }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, completeLogin, verifyMfa, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

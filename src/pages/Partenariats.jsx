@@ -38,6 +38,7 @@ const Field = ({ label, children }) => (
 
 export default function Partenariats() {
   const ref = useRefData();
+  const planShort = ref.setting('plan_short');
   const { user } = useAuth();
   const canWrite  = can(user, 'coordinator');
   const canDelete = can(user, 'director');
@@ -287,7 +288,7 @@ export default function Partenariats() {
                           </div>
                           {links.length > 0 && (
                             <div style={{ marginBottom:20 }}>
-                              <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>Programmes & projets NDT</p>
+                              <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>{`Programmes & projets ${planShort}`}</p>
                               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                                 {links.map(id => { const l = resolveLink(id) || { label:id, color:T.textDim }; return (
                                   <span key={id} style={{ fontSize:11, background:`${l.color}18`, color:l.color, fontFamily:'DM Sans', fontWeight:600, padding:'3px 9px', borderRadius:6 }}>{l.label}</span>
@@ -378,7 +379,7 @@ export default function Partenariats() {
               <Field label="Libellé"><Input value={form.next_meeting_label} onChange={v=>f('next_meeting_label',v)} placeholder="Ex: Revue annuelle BM"/></Field>
             </div>
           </div>
-          <Field label={`Programmes / projets NDT associés ${form.projects.length > 0 ? `(${form.projects.length} sélectionné${form.projects.length > 1 ? 's' : ''})` : ''}`}>
+          <Field label={`Programmes / projets ${planShort} associés ${form.projects.length > 0 ? `(${form.projects.length} sélectionné${form.projects.length > 1 ? 's' : ''})` : ''}`}>
             {groups.length === 0
               ? <div style={{ fontFamily:'DM Sans', fontSize:12, color:T.textDim, padding:'8px 0' }}>Aucun programme ni projet disponible</div>
               : (

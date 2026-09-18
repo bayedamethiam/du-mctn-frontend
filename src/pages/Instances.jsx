@@ -18,7 +18,7 @@ const PILLARS_FALLBACK = [
 const SCORE_KEYS = ['presence','contribution','postes','suivi'];
 
 const INST_EMPTY = { acronym:'', name:'', category:'', siege:'', niveau:'membre', responsible:'', focal:'', ndt_link:'', priority:'moyenne', mandats:'', gaps:'', next_meeting_label:'', next_meeting_date:'', next_meeting_lieu:'' };
-const CONTRIB_EMPTY = { titre:'', date:'', statut:'planifie', impact:'moyenne' };
+const CONTRIB_EMPTY = { titre:'', date:'', statut:'planifie', impact:'moyenne' };   // statut/impact réalignés sur les référentiels à l'ouverture
 const MONTH_SHORT = Array.from({ length: 12 }, (_, i) => { const s = new Intl.DateTimeFormat('fr-FR', { month:'short' }).format(new Date(2024, i, 1)).replace('.', ''); return s.charAt(0).toUpperCase() + s.slice(1); });
 const lbl = { fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 };
 const parseList = v => { if (Array.isArray(v)) return v; try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
@@ -165,7 +165,7 @@ export default function Instances({ embedded = false }) {
 
   const openAddContrib = (instId, e) => {
     e.stopPropagation();
-    setContribForm({ ...CONTRIB_EMPTY, statut: ref.list('contribution_status')[0]?.code || CONTRIB_EMPTY.statut });
+    setContribForm({ ...CONTRIB_EMPTY, statut: ref.list('contribution_status')[0]?.code || CONTRIB_EMPTY.statut, impact: ref.list('contribution_impact')[0]?.code || CONTRIB_EMPTY.impact });
     setContribInstId(instId); setEditingContrib(null);
     setContribModal(true);
   };

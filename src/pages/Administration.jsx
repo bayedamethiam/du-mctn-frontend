@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save } from 'lucide-react';
+import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, ShieldOff, LogOut, History, RefreshCw } from 'lucide-react';
 import { usersApi, refApi, settingsApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
-import { isAdmin } from '../permissions.js';
+import { isAdmin, can } from '../permissions.js';
 import HeroBanner from '../components/HeroBanner.jsx';
+import PasswordChecklist, { usePasswordPolicy } from '../components/PasswordChecklist.jsx';
 import { Card, Badge, Btn, Input, Select, Textarea, Modal, ModalFooter, Spinner, ErrorBanner, EmptyState } from '../components/UI.jsx';
+import { checkPassword } from '../utils/passwordPolicy.js';
+import { fmtDateTime, isFuture, shortUserAgent } from '../utils/authFormat.js';
 import { T } from '../theme.js';
 
 /* Libellés et regroupement des référentiels */
 const DOMAINS = [
   { group: 'Général',            items: [['priority','Priorités'], ['user_role','Rôles utilisateurs']] },
-  { group: 'Portefeuille',       items: [['program_status','Statuts des programmes'], ['meeting_type','Types de rendez-vous projet']] },
+  { group: 'Portefeuille',       items: [['program_status','Statuts des programmes'], ['project_status','Statuts de projet (hors phases)'], ['meeting_type','Types de rendez-vous projet']] },
   { group: 'Suivi-Évaluation',   items: [['indicator_category','Catégories d\'indicateurs'], ['indicator_status','Statuts d\'indicateurs'], ['revue_type','Types de revue'], ['revue_status','Statuts de revue'], ['evaluation_status','Statuts d\'évaluation'], ['eval_criteria','Critères d\'évaluation'], ['doc_tag','Catégories de documents']] },
   { group: 'Diligences',         items: [['diligence_type','Types de diligence'], ['diligence_status','Statuts de diligence']] },
   { group: 'Audiences',          items: [['audience_status','Statuts d\'audience'], ['action_status','Statuts des actions de suivi']] },
@@ -46,13 +49,23 @@ const SETTINGS_FORM = [
     ['instance_pillars','Piliers du score de représentation (JSON)', 'json'],
     ['se_cycle','Cycle de pilotage S&E (JSON)', 'json'],
   ]},
+  { group: 'Sécurité', fields: [
+    ['password_min_length','Longueur minimale des mots de passe'],
+    ['login_max_attempts','Tentatives de connexion avant verrouillage'],
+    ['login_lock_minutes','Durée du verrouillage (minutes)'],
+    ['mfa_required_roles','Rôles soumis à la double authentification obligatoire (codes, JSON)', 'json'],
+  ]},
 ];
 
 const TABS = [
   { id: 'users',    label: 'Utilisateurs',  icon: Users,      adminOnly: true },
   { id: 'ref',      label: 'Référentiels',  icon: ListChecks },
   { id: 'settings', label: 'Paramètres',    icon: Settings },
+  { id: 'logins',   label: 'Journal de connexion', icon: History, minRole: 'director' },
 ];
+
+const METHOD_LABELS = { password: 'Mot de passe', mfa: '2FA (code OTP)', 'mfa:recovery': '2FA (code de secours)', reset: 'Réinitialisation' };
+const methodLabel = m => METHOD_LABELS[m] || m || '—';
 
 const lbl = { fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, display: 'block', marginBottom: 5 };
 const Field = ({ label, children }) => <div><label style={lbl}>{label}</label>{children}</div>;
@@ -69,6 +82,8 @@ function UsersTab() {
   const [form, setForm]     = useState({});
   const [saving, setSaving] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [info, setInfo]     = useState('');
+  const policy = usePasswordPolicy();
 
   const load = useCallback(() => {
     usersApi.list().then(setUsers).catch(e => setError(e.message)).finally(() => setLoading(false));
@@ -78,11 +93,18 @@ function UsersTab() {
   const f = k => v => setForm(p => ({ ...p, [k]: v }));
   const roles = ref.list('user_role');
 
-  const openCreate = () => { setForm({ name: '', email: '', role: 'analyst', department: '', phone: '', password: '' }); setModal('create'); };
-  const openEdit   = u => { setForm({ name: u.name, email: u.email, role: u.role, department: u.department || '', phone: u.phone || '' }); setModal(u); };
+  const openCreate = () => { setError(''); setForm({ name: '', email: '', role: roles[0]?.code || 'analyst', department: '', phone: '', password: '' }); setModal('create'); };
+  const openEdit   = u => { setError(''); setForm({ name: u.name, email: u.email, role: u.role, department: u.department || '', phone: u.phone || '' }); setModal(u); };
+
+  const policyError = (pwd, u) => {
+    const unmet = checkPassword(pwd || '', policy, { email: u?.email, name: u?.name });
+    return unmet.length ? `Mot de passe non conforme : ${unmet.join(' · ')}` : '';
+  };
 
   const save = async () => {
-    setSaving(true); setError('');
+    setError(''); setInfo('');
+    if (modal === 'create') { const pe = policyError(form.password, form); if (pe) return setError(pe); }
+    setSaving(true);
     try {
       if (modal === 'create') await usersApi.create(form);
       else await usersApi.update(modal.id, form);
@@ -97,17 +119,28 @@ function UsersTab() {
   };
 
   const resetPwd = async () => {
-    setSaving(true); setError('');
+    setError(''); setInfo('');
+    const pe = policyError(form.password, pwdFor); if (pe) return setError(pe);
+    setSaving(true);
     try { await usersApi.resetPassword(pwdFor.id, form.password); setPwdFor(null); load(); }
     catch (e) { setError(e.message); }
     finally { setSaving(false); }
+  };
+
+  /* Actions de sécurité avec confirmation (déverrouillage, reset 2FA, révocation des sessions) */
+  const secAction = async (question, fn, success) => {
+    if (question && !window.confirm(question)) return;
+    setError(''); setInfo('');
+    try { const r = await fn(); setInfo(r?.message || success); load(); }
+    catch (e) { setError(e.message); }
   };
 
   if (loading) return <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}><Spinner /></div>;
 
   return (
     <div>
-      <ErrorBanner error={error} onDismiss={() => setError('')} />
+      <ErrorBanner error={!modal && !pwdFor ? error : ''} onDismiss={() => setError('')} />
+      {info && <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.success, marginBottom: 12 }}>✓ {info}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted }}>{users.filter(u => u.is_active).length} comptes actifs · {users.length} au total</div>
         <Btn onClick={openCreate}><Plus size={14} /> Nouveau compte</Btn>
@@ -117,34 +150,60 @@ function UsersTab() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans', fontSize: 13 }}>
             <thead>
               <tr style={{ textAlign: 'left', color: T.textDim, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
-                {['Nom', 'Email', 'Rôle', 'Pôle', 'Statut', ''].map(h => <th key={h} style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}` }}>{h}</th>)}
+                {['Nom', 'Email', 'Rôle', 'Pôle', '2FA', 'Dernière connexion', 'Statut', ''].map(h => <th key={h} style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {users.map(u => {
+                const locked = isFuture(u.locked_until);
+                const mfaOn  = !!Number(u.mfa_enabled);
+                return (
                 <tr key={u.id} style={{ borderBottom: `1px solid ${T.border}`, opacity: u.is_active ? 1 : 0.5 }}>
-                  <td style={{ padding: '12px 16px', color: T.text, fontWeight: 600 }}>{u.name}{u.must_change_password ? <span style={{ marginLeft: 8, fontSize: 10, color: T.warning }}>mot de passe provisoire</span> : null}</td>
+                  <td style={{ padding: '12px 16px', color: T.text, fontWeight: 600 }}>
+                    {u.name}
+                    {u.must_change_password ? <span style={{ marginLeft: 8, fontSize: 10, color: T.warning }}>mot de passe provisoire</span> : null}
+
+                  </td>
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.email}</td>
                   <td style={{ padding: '12px 16px' }}><Badge status={u.role} domain="user_role" /></td>
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.department || '—'}</td>
                   <td style={{ padding: '12px 16px' }}>
+                    {mfaOn
+                      ? <span style={{ background: `${T.success}26`, color: T.success, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Activée</span>
+                      : <span style={{ color: T.textDim }}>—</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px', color: T.textMuted, whiteSpace: 'nowrap', fontSize: 12 }}>{fmtDateTime(u.last_login_at, 'Jamais')}</td>
+                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                     <button onClick={() => toggleActive(u)} disabled={u.id === me?.id}
                       style={{ background: 'none', border: 'none', cursor: u.id === me?.id ? 'default' : 'pointer', fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: u.is_active ? T.success : T.textDim }}>
                       {u.is_active ? '● Actif' : '○ Désactivé'}
                     </button>
+                    {locked && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <span title={`Verrouillé jusqu'au ${fmtDateTime(u.locked_until)}${u.failed_logins ? ` · ${u.failed_logins} échec(s)` : ''}`} style={{ fontSize: 11, color: T.danger, fontWeight: 600 }}>🔒 Verrouillé</span>
+                        <Btn size="sm" variant="ghost" color={T.danger} style={{ padding: '2px 8px', fontSize: 11 }}
+                          onClick={() => secAction(null, () => usersApi.unlock(u.id), `Compte de ${u.name} déverrouillé`)}>Déverrouiller</Btn>
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                    <Btn size="sm" variant="ghost" onClick={() => openEdit(u)}><Pencil size={12} /></Btn>{' '}
-                    <Btn size="sm" variant="ghost" color={T.warning} onClick={() => { setForm({ password: '' }); setPwdFor(u); }}><KeyRound size={12} /></Btn>
+                    <span title="Modifier"><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}><Pencil size={12} /></Btn></span>{' '}
+                    <span title="Réinitialiser le mot de passe"><Btn size="sm" variant="ghost" color={T.warning} onClick={() => { setError(''); setShowPwd(false); setForm({ password: '' }); setPwdFor(u); }}><KeyRound size={12} /></Btn></span>{' '}
+                    {mfaOn && <><span title="Réinitialiser la 2FA"><Btn size="sm" variant="ghost" color={T.purple}
+                      onClick={() => secAction(`Réinitialiser la double authentification de ${u.name} ? Il devra la reconfigurer à sa prochaine connexion si elle est obligatoire pour son rôle.`, () => usersApi.resetMfa(u.id), `2FA de ${u.name} réinitialisée`)}><ShieldOff size={12} /></Btn></span>{' '}</>}
+                    <span title="Déconnecter toutes ses sessions"><Btn size="sm" variant="ghost" color={T.danger}
+                      onClick={() => secAction(`Déconnecter toutes les sessions de ${u.name} ?`, () => usersApi.revokeSessions(u.id), `Sessions de ${u.name} déconnectées`)}><LogOut size={12} /></Btn></span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       </Card>
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'create' ? 'Nouveau compte' : 'Modifier le compte'}>
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display: 'grid', gap: 12 }}>
           <Field label="Nom complet"><Input value={form.name || ''} onChange={f('name')} /></Field>
           <Field label="Email"><Input value={form.email || ''} onChange={f('email')} placeholder={`prenom.nom@${ref.setting('email_domain')}`} /></Field>
@@ -163,8 +222,9 @@ function UsersTab() {
           </div>
           <Field label="Téléphone"><Input value={form.phone || ''} onChange={f('phone')} placeholder={ref.setting('phone_prefix')} /></Field>
           {modal === 'create' && (
-            <Field label="Mot de passe provisoire (8 caractères min., à changer à la 1re connexion)">
+            <Field label="Mot de passe provisoire (à changer à la 1re connexion)">
               <Input type="password" value={form.password || ''} onChange={f('password')} />
+              <PasswordChecklist password={form.password} policy={policy} email={form.email} name={form.name} />
             </Field>
           )}
         </div>
@@ -172,17 +232,109 @@ function UsersTab() {
       </Modal>
 
       <Modal open={!!pwdFor} onClose={() => setPwdFor(null)} title={`Réinitialiser le mot de passe — ${pwdFor?.name || ''}`}>
-        <Field label="Nouveau mot de passe provisoire (8 caractères min.)">
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
+        <Field label="Nouveau mot de passe provisoire">
           <div style={{ position: 'relative' }}>
             <Input type={showPwd ? 'text' : 'password'} value={form.password || ''} onChange={f('password')} />
             <button onClick={() => setShowPwd(v => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: T.textDim, cursor: 'pointer' }}>
               {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
+          <PasswordChecklist password={form.password} policy={policy} email={pwdFor?.email} name={pwdFor?.name} />
         </Field>
         <p style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim, marginTop: 10 }}>L'utilisateur sera déconnecté et devra choisir un nouveau mot de passe à sa prochaine connexion.</p>
         <ModalFooter onCancel={() => setPwdFor(null)} onConfirm={resetPwd} loading={saving} confirmLabel="Réinitialiser" color={T.warning} />
       </Modal>
+    </div>
+  );
+}
+
+/* ── Journal de connexion ─────────────────────────────────────── */
+function LoginEventsTab() {
+  const { user } = useAuth();
+  const [events, setEvents]   = useState([]);
+  const [people, setPeople]   = useState([]);   // options du filtre utilisateur
+  const [userId, setUserId]   = useState('');
+  const [result, setResult]   = useState('');   // '' | 'success' | 'failure'
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true); setError('');
+    usersApi.loginEvents({ user_id: userId, limit: 200 })
+      .then(list => {
+        setEvents(list);
+        // Directeur : pas d'accès à la liste des comptes → options déduites du journal
+        if (!userId && !isAdmin(user)) {
+          const seen = new Map();
+          list.forEach(e => e.user_id && !seen.has(e.user_id) && seen.set(e.user_id, { id: e.user_id, name: e.user_name || e.email }));
+          setPeople(p => [...new Map([...p, ...seen.values()].map(x => [String(x.id), x])).values()]);
+        }
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [userId, user]);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (isAdmin(user)) usersApi.list().then(list => setPeople(list.map(u => ({ id: u.id, name: u.name })))).catch(() => {});
+  }, [user]);
+
+  const shown = events.filter(e => !result || (result === 'success' ? Number(e.success) : !Number(e.success)));
+  const td = { padding: '10px 14px', verticalAlign: 'top' };
+
+  return (
+    <div>
+      <ErrorBanner error={error} onDismiss={() => setError('')} />
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <Select value={userId} onChange={setUserId} style={{ width: 240 }}>
+          <option value="">Tous les utilisateurs</option>
+          {[...people].sort((a, b) => String(a.name).localeCompare(String(b.name), 'fr')).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </Select>
+        <Select value={result} onChange={setResult} style={{ width: 180 }}>
+          <option value="">Tous les résultats</option>
+          <option value="success">Réussites</option>
+          <option value="failure">Échecs</option>
+        </Select>
+        <Btn size="sm" variant="ghost" onClick={load} disabled={loading}><RefreshCw size={12} /> Actualiser</Btn>
+        <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim, marginLeft: 'auto' }}>{shown.length} événement(s) · 200 derniers max.</span>
+      </div>
+      <Card>
+        {loading ? <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}><Spinner /></div>
+          : shown.length === 0 ? <EmptyState icon={History} title="Aucun événement" />
+          : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans', fontSize: 12 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: T.textDim, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  {['Date', 'Utilisateur', 'Méthode', 'Résultat', 'IP', 'Navigateur'].map(h => <th key={h} style={{ padding: '12px 14px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map(e => {
+                  const ok = !!Number(e.success);
+                  return (
+                    <tr key={e.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }}>{fmtDateTime(e.created_at)}</td>
+                      <td style={td}>
+                        <div style={{ color: T.text, fontWeight: 600 }}>{e.user_name || '—'}</div>
+                        <div style={{ color: T.textDim, fontSize: 11 }}>{e.email}</div>
+                      </td>
+                      <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }}>{methodLabel(e.method)}</td>
+                      <td style={td}>
+                        <span style={{ color: ok ? T.success : T.danger, fontWeight: 700 }}>{ok ? '✓' : '✗'}</span>
+                        {!ok && e.reason && <span style={{ color: T.textMuted, marginLeft: 6 }}>{e.reason}</span>}
+                      </td>
+                      <td style={{ ...td, color: T.textMuted, fontFamily: 'monospace', fontSize: 11 }}>{e.ip || '—'}</td>
+                      <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }} title={e.user_agent || ''}>{e.user_agent ? shortUserAgent(e.user_agent) : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -323,6 +475,8 @@ function SettingsTab() {
     setError(''); setSaved(false);
     const payload = {};
     for (const g of SETTINGS_FORM) for (const [k, l, type] of g.fields) {
+      // Paramètre absent en base et laissé vide : ne pas l'écraser (le serveur applique sa valeur par défaut)
+      if (!(k in ref.settings) && !String(form[k] ?? '').trim()) continue;
       if (type === 'json') {
         try { payload[k] = JSON.stringify(JSON.parse(form[k] || 'null')); }
         catch { setError(`« ${l} » : JSON invalide`); return; }
@@ -366,7 +520,7 @@ function SettingsTab() {
 export default function Administration() {
   const { user } = useAuth();
   const ref = useRefData();
-  const tabs = TABS.filter(t => !t.adminOnly || isAdmin(user));
+  const tabs = TABS.filter(t => (!t.adminOnly || isAdmin(user)) && (!t.minRole || can(user, t.minRole)));
   const [tab, setTab] = useState(tabs[0].id);
 
   return (
@@ -385,6 +539,7 @@ export default function Administration() {
         {tab === 'users' && <UsersTab />}
         {tab === 'ref' && <RefTab />}
         {tab === 'settings' && <SettingsTab />}
+        {tab === 'logins' && <LoginEventsTab />}
       </div>
     </div>
   );

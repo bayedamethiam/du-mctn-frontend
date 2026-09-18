@@ -9,16 +9,23 @@ export function setToken(t) {
 export function setUnauthCallback(fn) { _onUnauth = fn; }
 export function getToken() { return _token; }
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/refresh'];
+// Routes publiques : un 401 y signifie « refusé », pas « session expirée » (ni refresh ni déconnexion)
+const PUBLIC_PATHS = ['/auth/login', '/auth/refresh', '/auth/mfa/verify', '/auth/forgot-password', '/auth/reset-password', '/auth/options'];
 let _refreshing = null;
 
-/* Renouvelle l'access token avec le refresh token (un seul appel concurrent) */
+/* Renouvelle l'access token avec le refresh token (un seul appel concurrent).
+ * Rotation : le serveur renvoie un nouveau refresh token qui remplace l'ancien. */
 async function tryRefresh() {
   const rt = localStorage.getItem('du_refresh');
   if (!rt) return false;
   _refreshing ||= fetch(`${BASE}/auth/refresh`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: rt }) })
     .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d?.accessToken) { setToken(d.accessToken); return true; } return false; })
+    .then(d => {
+      if (!d?.accessToken) return false;
+      setToken(d.accessToken);
+      if (d.refreshToken) localStorage.setItem('du_refresh', d.refreshToken);
+      return true;
+    })
     .catch(() => false)
     .finally(() => { setTimeout(() => { _refreshing = null; }, 0); });
   return _refreshing;
@@ -50,7 +57,14 @@ async function authFetch(method, path, body, isForm = false) {
 async function request(method, path, body, isForm = false) {
   const res  = await authFetch(method, path, body ?? undefined, isForm);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `Erreur ${res.status}`);
+    err.status = res.status;
+    err.data   = data;
+    // 403 bloquants tant que le mot de passe n'est pas changé / la 2FA pas configurée
+    if (res.status === 403 && (data.code === 'MFA_SETUP_REQUIRED' || data.code === 'PASSWORD_CHANGE_REQUIRED')) err.code = data.code;
+    throw err;
+  }
   return data;
 }
 
@@ -86,6 +100,20 @@ export const authApi = {
   me:             ()                => request('GET',  '/auth/me'),
   refresh:        rt                => request('POST', '/auth/refresh', { refreshToken: rt }),
   changePassword: (cur, nxt)        => request('POST', '/auth/change-password', { currentPassword: cur, newPassword: nxt }),
+  // Public
+  options:        ()                => request('GET',  '/auth/options'),
+  verifyMfa:      (mfaToken, code)  => request('POST', '/auth/mfa/verify', { mfaToken, code }),
+  forgotPassword: email             => request('POST', '/auth/forgot-password', { email }),
+  resetPassword:  (token, password) => request('POST', '/auth/reset-password', { token, password }),
+  // Double authentification
+  mfaSetup:                ()               => request('POST', '/auth/mfa/setup'),
+  mfaEnable:               code             => request('POST', '/auth/mfa/enable', { code }),
+  mfaDisable:              (password, code) => request('POST', '/auth/mfa/disable', { password, code }),
+  regenerateRecoveryCodes: code             => request('POST', '/auth/mfa/recovery-codes', { code }),
+  // Sessions
+  sessions:            ()  => request('GET',    '/auth/sessions'),
+  revokeSession:       id  => request('DELETE', `/auth/sessions/${id}`),
+  revokeOtherSessions: ()  => request('POST',   '/auth/sessions/revoke-others'),
 };
 
 // Dashboard
@@ -227,6 +255,10 @@ export const usersApi = {
   create:        d         => api.post('/auth/users', d),
   update:        (id, d)   => api.put(`/auth/users/${id}`, d),
   resetPassword: (id, pwd) => api.post(`/auth/users/${id}/reset-password`, { password: pwd }),
+  unlock:         id       => api.post(`/auth/users/${id}/unlock`),
+  resetMfa:       id       => api.post(`/auth/users/${id}/mfa-reset`),
+  revokeSessions: id       => api.post(`/auth/users/${id}/revoke-sessions`),
+  loginEvents:    (p = {}) => api.get('/auth/login-events?' + new URLSearchParams(Object.entries(p).filter(([, v]) => v !== '' && v != null))),
 };
 
 // Équipe
