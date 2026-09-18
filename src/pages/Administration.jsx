@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, ShieldOff, LogOut, History, RefreshCw } from 'lucide-react';
+import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw } from 'lucide-react';
 import { usersApi, refApi, settingsApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
@@ -53,6 +53,7 @@ const SETTINGS_FORM = [
     ['password_min_length','Longueur minimale des mots de passe'],
     ['login_max_attempts','Tentatives de connexion avant verrouillage'],
     ['login_lock_minutes','Durée du verrouillage (minutes)'],
+    ['invite_expiry_days','Validité du lien d\'invitation (jours)'],
     ['mfa_required_roles','Rôles soumis à la double authentification obligatoire (codes, JSON)', 'json'],
   ]},
 ];
@@ -93,7 +94,8 @@ function UsersTab() {
   const f = k => v => setForm(p => ({ ...p, [k]: v }));
   const roles = ref.list('user_role');
 
-  const openCreate = () => { setError(''); setForm({ name: '', email: '', role: roles[0]?.code || 'analyst', department: '', phone: '', password: '' }); setModal('create'); };
+  const mailEnabled = !!policy?.email_enabled;
+  const openCreate = () => { setError(''); setForm({ name: '', email: '', role: roles[0]?.code || 'analyst', department: '', phone: '', password: '', invite: mailEnabled }); setModal('create'); };
   const openEdit   = u => { setError(''); setForm({ name: u.name, email: u.email, role: u.role, department: u.department || '', phone: u.phone || '' }); setModal(u); };
 
   const policyError = (pwd, u) => {
@@ -103,15 +105,24 @@ function UsersTab() {
 
   const save = async () => {
     setError(''); setInfo('');
-    if (modal === 'create') { const pe = policyError(form.password, form); if (pe) return setError(pe); }
+    const invite = modal === 'create' && form.invite && mailEnabled;
+    if (modal === 'create' && !invite) { const pe = policyError(form.password, form); if (pe) return setError(pe); }
     setSaving(true);
     try {
-      if (modal === 'create') await usersApi.create(form);
-      else await usersApi.update(modal.id, form);
+      if (modal === 'create') {
+        const { invite: _i, password, ...rest } = form;
+        const created = await usersApi.create(invite ? { ...rest, send_invite: true } : { ...rest, password, send_invite: false });
+        setInfo(created.invite_error || (created.invited ? `Invitation envoyée à ${created.email}` : `Compte ${created.email} créé`));
+        if (created.invite_error) setError(created.invite_error);
+      } else await usersApi.update(modal.id, form);
       setModal(null); load();
     } catch (e) { setError(e.message); }
     finally { setSaving(false); }
   };
+
+  const resendInvite = u => secAction(
+    `Renvoyer une invitation à ${u.email} ? Le lien précédent sera annulé.`,
+    () => usersApi.invite(u.id), `Invitation envoyée à ${u.email}`);
 
   const toggleActive = async u => {
     try { await usersApi.update(u.id, { is_active: u.is_active ? 0 : 1 }); load(); }
@@ -188,6 +199,8 @@ function UsersTab() {
                   </td>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <span title="Modifier"><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}><Pencil size={12} /></Btn></span>{' '}
+                    {mailEnabled && !!u.is_active && <><span title="Renvoyer l'invitation par email"><Btn size="sm" variant="ghost" color={T.teal}
+                      onClick={() => resendInvite(u)}><Mail size={12} /></Btn></span>{' '}</>}
                     <span title="Réinitialiser le mot de passe"><Btn size="sm" variant="ghost" color={T.warning} onClick={() => { setError(''); setShowPwd(false); setForm({ password: '' }); setPwdFor(u); }}><KeyRound size={12} /></Btn></span>{' '}
                     {mfaOn && <><span title="Réinitialiser la 2FA"><Btn size="sm" variant="ghost" color={T.purple}
                       onClick={() => secAction(`Réinitialiser la double authentification de ${u.name} ? Il devra la reconfigurer à sa prochaine connexion si elle est obligatoire pour son rôle.`, () => usersApi.resetMfa(u.id), `2FA de ${u.name} réinitialisée`)}><ShieldOff size={12} /></Btn></span>{' '}</>}
@@ -222,10 +235,33 @@ function UsersTab() {
           </div>
           <Field label="Téléphone"><Input value={form.phone || ''} onChange={f('phone')} placeholder={ref.setting('phone_prefix')} /></Field>
           {modal === 'create' && (
-            <Field label="Mot de passe provisoire (à changer à la 1re connexion)">
-              <Input type="password" value={form.password || ''} onChange={f('password')} />
-              <PasswordChecklist password={form.password} policy={policy} email={form.email} name={form.name} />
-            </Field>
+            mailEnabled ? (
+              <>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form.invite} onChange={e => f('invite')(e.target.checked)} style={{ marginTop: 3, accentColor: T.teal }} />
+                  <span>
+                    <span style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.text }}>Envoyer une invitation par email</span>
+                    <span style={{ display: 'block', fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 2 }}>
+                      La personne reçoit un lien pour choisir elle-même son mot de passe. Aucun mot de passe n'est transmis par email.
+                    </span>
+                  </span>
+                </label>
+                {!form.invite && (
+                  <Field label="Mot de passe provisoire (à changer à la 1re connexion)">
+                    <Input type="password" value={form.password || ''} onChange={f('password')} />
+                    <PasswordChecklist password={form.password} policy={policy} email={form.email} name={form.name} />
+                  </Field>
+                )}
+              </>
+            ) : (
+              <Field label="Mot de passe provisoire (à changer à la 1re connexion)">
+                <Input type="password" value={form.password || ''} onChange={f('password')} />
+                <PasswordChecklist password={form.password} policy={policy} email={form.email} name={form.name} />
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 6 }}>
+                  L'envoi d'emails n'est pas configuré : l'invitation automatique est indisponible.
+                </div>
+              </Field>
+            )
           )}
         </div>
         <ModalFooter onCancel={() => setModal(null)} onConfirm={save} loading={saving} />

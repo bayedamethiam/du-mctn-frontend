@@ -10,11 +10,14 @@ export function loadAuthOptions() {
   return _optionsPromise;
 }
 
+/* Politique de mot de passe + indicateur email_enabled (invitations et mot de passe oublié) */
 export function usePasswordPolicy() {
   const [policy, setPolicy] = useState(DEFAULT_POLICY);
   useEffect(() => {
     let alive = true;
-    loadAuthOptions().then(o => { if (alive && o?.password_policy) setPolicy({ ...DEFAULT_POLICY, ...o.password_policy }); });
+    loadAuthOptions().then(o => {
+      if (alive && o) setPolicy({ ...DEFAULT_POLICY, ...(o.password_policy || {}), email_enabled: !!o.email_enabled });
+    });
     return () => { alive = false; };
   }, []);
   return policy;

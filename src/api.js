@@ -258,6 +258,7 @@ export const usersApi = {
   unlock:         id       => api.post(`/auth/users/${id}/unlock`),
   resetMfa:       id       => api.post(`/auth/users/${id}/mfa-reset`),
   revokeSessions: id       => api.post(`/auth/users/${id}/revoke-sessions`),
+  invite:         id       => api.post(`/auth/users/${id}/invite`),
   loginEvents:    (p = {}) => api.get('/auth/login-events?' + new URLSearchParams(Object.entries(p).filter(([, v]) => v !== '' && v != null))),
 };
 
