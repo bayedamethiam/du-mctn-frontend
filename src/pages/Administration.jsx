@@ -206,7 +206,11 @@ function UsersTab() {
                     {mfaOn && <><span title="Réinitialiser la 2FA"><Btn size="sm" variant="ghost" color={T.purple}
                       onClick={() => secAction(`Réinitialiser la double authentification de ${u.name} ? Il devra la reconfigurer à sa prochaine connexion si elle est obligatoire pour son rôle.`, () => usersApi.resetMfa(u.id), `2FA de ${u.name} réinitialisée`)}><ShieldOff size={12} /></Btn></span>{' '}</>}
                     <span title="Déconnecter toutes ses sessions"><Btn size="sm" variant="ghost" color={T.danger}
-                      onClick={() => secAction(`Déconnecter toutes les sessions de ${u.name} ?`, () => usersApi.revokeSessions(u.id), `Sessions de ${u.name} déconnectées`)}><LogOut size={12} /></Btn></span>
+                      onClick={() => secAction(`Déconnecter toutes les sessions de ${u.name} ?`, () => usersApi.revokeSessions(u.id), `Sessions de ${u.name} déconnectées`)}><LogOut size={12} /></Btn></span>{' '}
+                    {u.id !== me?.id && <span title="Supprimer définitivement le compte"><Btn size="sm" variant="ghost" color={T.danger}
+                      onClick={() => secAction(
+                        `Supprimer définitivement le compte de ${u.name} (${u.email}) ?\n\nCette action est irréversible. Pour retirer l'accès en gardant la trace du compte, préférez « Désactivé ».`,
+                        () => usersApi.delete(u.id), `Compte de ${u.name} supprimé`)}><Trash2 size={12} /></Btn></span>}
                   </td>
                 </tr>
                 );
