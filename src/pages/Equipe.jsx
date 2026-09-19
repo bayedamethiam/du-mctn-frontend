@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mail, Phone, ChevronDown, ChevronUp, Plus, Pencil, Trash2, Users, RotateCcw, UserCheck } from 'lucide-react';
+import { Mail, Phone, ChevronDown, ChevronUp, Plus, Pencil, Trash2, Users, RotateCcw, UserCheck, UserPlus } from 'lucide-react';
 import { api, teamApi, programsApi, usersApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea, Btn, EmptyState } from '../components/UI.jsx';
+import PasswordChecklist, { usePasswordPolicy } from '../components/PasswordChecklist.jsx';
+import { checkPassword } from '../utils/passwordPolicy.js';
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -15,16 +17,39 @@ const EMPTY = { name:'', role:'', level:'', department:'', initials:'', color:'#
 const lbl = { fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 };
 const parseExpertise = m => { if (Array.isArray(m.expertise)) return m.expertise; try { const a = JSON.parse(m.expertise_json || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
 
+/* Accès applicatif du membre : account.status renvoyé par GET /team (null = aucun compte lié) */
+const ACCESS = {
+  actif:      { label: 'Accès actif',           color: '#10b981' },
+  invitation: { label: 'Invitation en attente', color: '#f59e0b' },
+  inactif:    { label: 'Accès désactivé',       color: '#ef4444' },
+};
+const NO_ACCESS = { label: 'Sans accès', color: '#94a3b8' };
+const accessConf = m => ACCESS[m?.account?.status] || NO_ACCESS;
+
+const AccessChip = ({ member, title }) => {
+  const c = accessConf(member);
+  return (
+    <span title={title || undefined}
+      style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:600, letterSpacing:0.2, color:c.color, background:`${c.color}18`, border:`1px solid ${c.color}33`, borderRadius:20, padding:'1px 7px', whiteSpace:'nowrap' }}>
+      {c.label}
+    </span>
+  );
+};
+
 export default function Equipe() {
   const ref = useRefData();
   const { user } = useAuth();
   const canManage = hasPerm(user, 'team.manage');
   const canDelete = hasPerm(user, 'team.delete');
   const canSeeUsers = hasPerm(user, 'users.read', 'users.manage');
+  const canManageUsers = hasPerm(user, 'users.manage');
+  const policy = usePasswordPolicy();
+  const mailEnabled = !!policy?.email_enabled;
 
   const [members, setMembers]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
+  const [info, setInfo]         = useState('');
   const [selected, setSelected] = useState(null);
   const [viewMode, setViewMode] = useState('hierarchy');
   const [modal, setModal]       = useState(false);
@@ -35,6 +60,15 @@ export default function Equipe() {
   const [showInactive, setShowInactive] = useState(false);
   const [programs, setPrograms] = useState([]);
   const [users, setUsers]       = useState(null); // null = liste indisponible (droits) → champ masqué
+  /* Création d'accès applicatif depuis la fiche */
+  const [accessFor, setAccessFor]   = useState(null);
+  const [accessForm, setAccessForm] = useState({ email:'', role:'', password:'' });
+  const [accessError, setAccessError] = useState('');
+  const [accessSaving, setAccessSaving] = useState(false);
+  /* Désactivation : le compte lié peut être désactivé en même temps */
+  const [delFor, setDelFor]     = useState(null);
+  const [delAccount, setDelAccount] = useState(true);
+  const [delSaving, setDelSaving]   = useState(false);
 
   const load = useCallback(() => {
     // Inactifs inclus : réservé directeur / admin (api.js partagé non modifié → appel direct)
@@ -78,6 +112,9 @@ export default function Equipe() {
     try {
       const payload = { ...form, level, expertise: form.expertise.split(',').map(s => s.trim()).filter(Boolean) };
       if (users === null) delete payload.user_id; // champ non modifiable sans accès à la liste des comptes
+      // Membre rattaché à un compte : l'identité vient du compte, inutile de la renvoyer (le serveur la réécrit)
+      if (editing?.account && String(payload.user_id ?? '') === String(editing.user_id ?? ''))
+        for (const k of ['name', 'email', 'phone']) delete payload[k];
       if (editing) {
         const updated = await teamApi.update(editing.id, payload);
         if (updated) setMembers(ms => ms.map(m => m.id === editing.id ? updated : m)); else load();
@@ -90,14 +127,55 @@ export default function Equipe() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id, e) => {
+  /* Désactivation : avec un accès encore ouvert, on demande s'il faut le couper en même temps */
+  const askDelete = (m, e) => {
     e.stopPropagation();
-    if (!window.confirm('Désactiver ce membre ?')) return;
+    setError(''); setInfo('');
+    if (m.account && m.account.status !== 'inactif' && canManageUsers) { setDelAccount(true); setDelFor(m); return; }
+    if (window.confirm('Désactiver ce membre ?')) doDelete(m, false);
+  };
+
+  const doDelete = async (m, deactivateAccount) => {
+    setDelSaving(true);
     try {
-      await teamApi.delete(id);
-      setMembers(ms => showInactive ? ms.map(m => m.id === id ? { ...m, is_active: 0 } : m) : ms.filter(m => m.id !== id));
-      if (selected === id) setSelected(null);
-    } catch (e) { setError(e.message); }
+      const r = await teamApi.delete(m.id, { deactivateAccount });
+      setMembers(ms => showInactive
+        ? ms.map(x => x.id === m.id ? { ...x, is_active: 0, account: x.account && r?.account_deactivated ? { ...x.account, is_active: 0, status: 'inactif' } : x.account } : x)
+        : ms.filter(x => x.id !== m.id));
+      if (selected === m.id) setSelected(null);
+      setDelFor(null);
+      if (r?.account_deactivated) setInfo(`Fiche et accès de ${m.name} désactivés`);
+    } catch (e) { setError(e.message); setDelFor(null); load(); }
+    finally { setDelSaving(false); }
+  };
+
+  /* Création de l'accès applicatif : compte pré-rempli depuis la fiche + invitation par email */
+  const defaultRole = () => (ref.roles || [])[(ref.roles || []).length - 1]?.code || '';
+  const openAccess = (m, e) => {
+    e.stopPropagation();
+    setError(''); setInfo(''); setAccessError('');
+    setAccessForm({ email: m.email || '', role: defaultRole(), password: '' });
+    setAccessFor(m);
+  };
+
+  const saveAccess = async () => {
+    const email = accessForm.email.trim();
+    if (!email) return setAccessError('Email requis pour créer un accès');
+    if (!mailEnabled) {
+      const unmet = checkPassword(accessForm.password || '', policy, { email, name: accessFor.name });
+      if (unmet.length) return setAccessError(`Mot de passe non conforme : ${unmet.join(' · ')}`);
+    }
+    setAccessSaving(true);
+    try {
+      const body = mailEnabled
+        ? { email, role: accessForm.role, send_invite: true }
+        : { email, role: accessForm.role, password: accessForm.password, send_invite: false };
+      const updated = await teamApi.createAccount(accessFor.id, body);
+      if (updated?.id) setMembers(ms => ms.map(m => m.id === updated.id ? { ...m, ...updated } : m)); else load();
+      setInfo(updated?.invite_error || (updated?.invited ? `Invitation envoyée à ${email}` : `Accès créé pour ${accessFor.name} (${email})`));
+      setAccessFor(null);
+    } catch (e) { setAccessError(e.message); }
+    finally { setAccessSaving(false); }
   };
 
   const handleReactivate = async (id, e) => {
@@ -120,7 +198,7 @@ export default function Equipe() {
     const isSel     = selected === member.id;
     const inactive  = !isActive(member);
     const expertise = parseExpertise(member);
-    const account   = users && member.user_id ? users.find(u => String(u.id) === String(member.user_id)) : null;
+    const account   = member.account || (users && member.user_id ? users.find(u => String(u.id) === String(member.user_id)) : null);
     return (
       <div onClick={() => setSelected(isSel ? null : member.id)}
         style={{ background:T.surface, border:`1px solid ${isSel?member.color:T.border}`, borderRadius:featured?14:12, padding:featured?'22px 24px':'16px 18px', cursor:'pointer', transition:'all 0.2s', marginBottom:10, opacity: inactive ? 0.5 : 1, boxShadow:isSel?`0 0 0 1px ${member.color}44, 0 8px 30px ${member.color}22`:'' }}>
@@ -133,7 +211,10 @@ export default function Equipe() {
               {member.name}
               {inactive && <span style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:700, color:T.textDim, background:T.surface2, borderRadius:4, padding:'1px 6px', marginLeft:8, verticalAlign:'middle' }}>INACTIF</span>}
             </div>
-            <div style={{ fontFamily:'DM Sans', fontSize:featured?12:11, color:member.color, fontWeight:600, marginTop:2 }}>{member.role}</div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:2 }}>
+              <span style={{ fontFamily:'DM Sans', fontSize:featured?12:11, color:member.color, fontWeight:600 }}>{member.role}</span>
+              <AccessChip member={member} title={member.account ? `Compte : ${member.account.email}` : 'Aucun compte utilisateur lié à cette fiche'}/>
+            </div>
             <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
               {expertise.slice(0, featured?4:2).map((e,i) => { const pg = programOf(e); return (
                 <span key={i} title={pg ? `${pg.code} · ${pg.name}` : undefined} style={{ background:`${member.color}15`, color:member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4, cursor: pg ? 'help' : undefined }}>{e}</span>
@@ -141,10 +222,13 @@ export default function Equipe() {
             </div>
           </div>
           <div style={{ display:'flex', gap:2, alignItems:'center' }} onClick={e => e.stopPropagation()}>
+            {canManageUsers && !member.account && !inactive && (
+              <button onClick={e => openAccess(member, e)} style={{ background:'none', border:'none', color:T.teal, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Créer un accès à l'application"><UserPlus size={12}/></button>
+            )}
             {canManage && <button onClick={e => { e.stopPropagation(); openEdit(member); }} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"><Pencil size={12}/></button>}
             {(inactive ? canManage : canDelete) && (inactive
               ? <button onClick={e => handleReactivate(member.id, e)} style={{ background:'none', border:'none', color:'#10b981', cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Réactiver"><RotateCcw size={12}/></button>
-              : <button onClick={e => handleDelete(member.id, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Désactiver"><Trash2 size={12}/></button>)}
+              : <button onClick={e => askDelete(member, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Désactiver"><Trash2 size={12}/></button>)}
             {isSel ? <ChevronUp size={14} color={T.textMuted}/> : <ChevronDown size={14} color={T.textMuted}/>}
           </div>
         </div>
@@ -163,6 +247,9 @@ export default function Equipe() {
               {member.email && <a href={`mailto:${member.email}`} style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'DM Sans', fontSize:11, color:T.teal, textDecoration:'none' }}><Mail size={12}/> {member.email}</a>}
               {member.phone && <div style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'DM Sans', fontSize:11, color:T.textDim }}><Phone size={12}/> {member.phone}</div>}
               {account && <div style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'DM Sans', fontSize:11, color:T.textDim }}><UserCheck size={12}/> Compte : {account.email || account.name}</div>}
+              {!member.account && canManageUsers && !inactive && (
+                <Btn size="sm" variant="ghost" color={T.teal} onClick={e => openAccess(member, e)}><UserPlus size={12}/> Créer un accès</Btn>
+              )}
             </div>
           </div>
         )}
@@ -188,6 +275,12 @@ export default function Equipe() {
         stats={[{ value:active.length, label:'Membres' }, { value:levelCount, label:'Niveaux' }, { value:poleCount, label:'Pôles actifs', color:'#10b981' }]} />
       <div style={{ padding:28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
+        {info && (
+          <div style={{ display:'flex', alignItems:'center', gap:8, fontFamily:'DM Sans', fontSize:12, color:T.success, marginBottom:14 }}>
+            ✓ {info}
+            <button onClick={() => setInfo('')} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:16, lineHeight:1 }}>×</button>
+          </div>
+        )}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, gap:12, flexWrap:'wrap' }}>
           <div style={{ display:'flex', background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}` }}>
             {[['hierarchy','Hiérarchie'],['pole','Pôles'],['grid','Grille']].map(([v,l]) => (
@@ -287,13 +380,19 @@ export default function Equipe() {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
               <label style={lbl}>Nom complet *</label>
-              <Input value={form.name} onChange={f('name')} placeholder="Prénom Nom"/>
+              <Input value={form.name} onChange={f('name')} placeholder="Prénom Nom" disabled={!!editing?.account} style={editing?.account ? { opacity:0.65 } : undefined}/>
             </div>
             <div>
               <label style={lbl}>Fonction / Rôle *</label>
               <Input value={form.role} onChange={f('role')} placeholder="Ex: Coordonnateur S&E"/>
             </div>
           </div>
+          {editing?.account && (
+            <div style={{ background:`${T.teal}12`, border:`1px solid ${T.teal}33`, borderRadius:8, padding:'9px 12px', fontFamily:'DM Sans', fontSize:11, color:T.textMuted, display:'flex', alignItems:'center', gap:7 }}>
+              <UserCheck size={13} color={T.teal}/>
+              Ces informations viennent du compte utilisateur (nom, email, téléphone). Modifiez-les dans Administration › Utilisateurs.
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
               <label style={lbl}>Niveau hiérarchique *</label>
@@ -335,11 +434,11 @@ export default function Equipe() {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
               <label style={lbl}>Email</label>
-              <Input value={form.email} onChange={f('email')} placeholder={`prenom.nom@${ref.setting('email_domain')}`} type="email"/>
+              <Input value={form.email} onChange={f('email')} placeholder={`prenom.nom@${ref.setting('email_domain')}`} type="email" disabled={!!editing?.account} style={editing?.account ? { opacity:0.65 } : undefined}/>
             </div>
             <div>
               <label style={lbl}>Téléphone</label>
-              <Input value={form.phone} onChange={f('phone')} placeholder={`${ref.setting('phone_prefix')} 77 000 00 00`}/>
+              <Input value={form.phone} onChange={f('phone')} placeholder={`${ref.setting('phone_prefix')} 77 000 00 00`} disabled={!!editing?.account} style={editing?.account ? { opacity:0.65 } : undefined}/>
             </div>
           </div>
           {users !== null && (
@@ -358,6 +457,61 @@ export default function Equipe() {
         </div>
         {formError && <div style={{ marginTop:14, padding:'9px 12px', borderRadius:8, background:'#ef444418', border:'1px solid #ef444440', color:'#ef4444', fontFamily:'DM Sans', fontSize:12 }}>{formError}</div>}
         <ModalFooter onCancel={() => setModal(false)} onConfirm={handleSave} loading={saving} confirmLabel={editing ? 'Mettre à jour' : 'Ajouter'}/>
+      </Modal>
+
+      {/* Création de l'accès applicatif d'un membre */}
+      <Modal open={!!accessFor} onClose={() => setAccessFor(null)} title={`Créer un accès - ${accessFor?.name || ''}`} width={480}>
+        <ErrorBanner error={accessError} onDismiss={() => setAccessError('')} />
+        <div style={{ display:'grid', gap:14 }}>
+          <div>
+            <label style={lbl}>Email de connexion *</label>
+            <Input value={accessForm.email} onChange={v => { setAccessError(''); setAccessForm(p => ({ ...p, email: v })); }}
+              placeholder={`prenom.nom@${ref.setting('email_domain')}`} type="email"/>
+          </div>
+          <div>
+            <label style={lbl}>Rôle</label>
+            <Select value={accessForm.role} onChange={v => setAccessForm(p => ({ ...p, role: v }))} style={{ width:'100%' }}>
+              {(ref.roles || []).length === 0 && <option value="">-</option>}
+              {(ref.roles || []).map(r => <option key={r.code} value={r.code} title={r.description || ''}>{r.label}</option>)}
+            </Select>
+            {ref.role(accessForm.role)?.description && (
+              <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:5 }}>{ref.role(accessForm.role).description}</div>
+            )}
+          </div>
+          {mailEnabled ? (
+            <div style={{ background:`${T.teal}12`, border:`1px solid ${T.teal}33`, borderRadius:8, padding:'10px 13px', fontFamily:'DM Sans', fontSize:11.5, color:T.textMuted, lineHeight:1.6 }}>
+              Une invitation sera envoyée à cette adresse : la personne choisit elle-même son mot de passe.
+              Aucun mot de passe n'est transmis par email. Le compte reprend le pôle et le téléphone de la fiche.
+            </div>
+          ) : (
+            <div>
+              <label style={lbl}>Mot de passe provisoire (à changer à la 1re connexion)</label>
+              <Input type="password" value={accessForm.password} onChange={v => { setAccessError(''); setAccessForm(p => ({ ...p, password: v })); }}/>
+              <PasswordChecklist password={accessForm.password} policy={policy} email={accessForm.email} name={accessFor?.name}/>
+              <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:6 }}>
+                L'envoi d'emails n'est pas configuré : l'invitation automatique est indisponible.
+              </div>
+            </div>
+          )}
+        </div>
+        <ModalFooter onCancel={() => setAccessFor(null)} onConfirm={saveAccess} loading={accessSaving} confirmLabel={mailEnabled ? 'Créer et inviter' : 'Créer l\'accès'}/>
+      </Modal>
+
+      {/* Désactivation d'un membre disposant d'un accès */}
+      <Modal open={!!delFor} onClose={() => setDelFor(null)} title="Désactiver le membre" width={460}>
+        <p style={{ fontFamily:'DM Sans', fontSize:13, color:T.textMuted, lineHeight:1.6 }}>
+          La fiche de <strong style={{ color:T.text }}>{delFor?.name}</strong> sera retirée de l'organigramme.
+        </p>
+        <label style={{ display:'flex', alignItems:'flex-start', gap:9, cursor:'pointer', marginTop:14 }}>
+          <input type="checkbox" checked={delAccount} onChange={e => setDelAccount(e.target.checked)} style={{ marginTop:3, accentColor:T.teal }}/>
+          <span>
+            <span style={{ fontFamily:'DM Sans', fontSize:13, color:T.text }}>Désactiver aussi son accès à l'application</span>
+            <span style={{ display:'block', fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:2 }}>
+              Le compte {delFor?.account?.email} est conservé mais ne permet plus de se connecter, et ses sessions sont fermées.
+            </span>
+          </span>
+        </label>
+        <ModalFooter onCancel={() => setDelFor(null)} onConfirm={() => doDelete(delFor, delAccount)} loading={delSaving} confirmLabel="Désactiver" color={T.danger}/>
       </Modal>
     </div>
   );

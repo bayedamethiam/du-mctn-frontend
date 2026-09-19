@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw, ShieldCheck, UserPlus } from 'lucide-react';
 import { usersApi, refApi, settingsApi, rolesApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
@@ -88,6 +88,12 @@ function UsersTab() {
   const [showPwd, setShowPwd] = useState(false);
   const [info, setInfo]     = useState('');
   const policy = usePasswordPolicy();
+  const canTeam = hasPerm(me, 'team.manage');
+  /* Fiche équipe : création depuis un compte, et désactivation conjointe */
+  const [memberFor, setMemberFor]   = useState(null);
+  const [memberForm, setMemberForm] = useState({ role: '', level: '' });
+  const [deactFor, setDeactFor]     = useState(null);
+  const [deactMember, setDeactMember] = useState(true);
 
   const load = useCallback(() => {
     usersApi.list().then(setUsers).catch(e => setError(e.message)).finally(() => setLoading(false));
@@ -130,9 +136,41 @@ function UsersTab() {
     `Renvoyer une invitation à ${u.email} ? Le lien précédent sera annulé.`,
     () => usersApi.invite(u.id), `Invitation envoyée à ${u.email}`);
 
+  /* Désactivation : si une fiche équipe active est liée, on propose de la retirer aussi de l'organigramme */
   const toggleActive = async u => {
+    setError(''); setInfo('');
+    if (u.is_active && u.team_member?.is_active) { setDeactMember(true); setDeactFor(u); return; }
     try { await usersApi.update(u.id, { is_active: u.is_active ? 0 : 1 }); load(); }
     catch (e) { setError(e.message); }
+  };
+
+  const confirmDeactivate = async () => {
+    setSaving(true);
+    try {
+      const r = await usersApi.update(deactFor.id, { is_active: 0, deactivate_member: deactMember });
+      setInfo(r?.member_deactivated ? `Compte et fiche équipe de ${deactFor.name} désactivés` : `Compte de ${deactFor.name} désactivé`);
+      setDeactFor(null); load();
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
+  };
+
+  /* Création de la fiche équipe (organigramme) à partir du compte */
+  const levels = ref.list('team_level');
+  // Niveau proposé par défaut : avant-dernier du référentiel (ex. « Chargé de mission »)
+  const defaultLevel = String((levels.length >= 2 ? levels[levels.length - 2] : levels[0])?.code ?? '');
+  const openMember = u => { setError(''); setInfo(''); setMemberForm({ role: '', level: defaultLevel }); setMemberFor(u); };
+
+  const saveMember = async () => {
+    setError('');
+    if (!memberForm.role.trim()) return setError('Fonction requise');
+    if (!/^\d+$/.test(String(memberForm.level))) return setError(levels.length ? 'Niveau hiérarchique requis' : 'Niveau hiérarchique requis - référentiel des niveaux vide (onglet Référentiels)');
+    setSaving(true);
+    try {
+      await usersApi.createTeamMember(memberFor.id, { role: memberForm.role.trim(), level: parseInt(memberForm.level, 10) });
+      setInfo(`Fiche équipe créée pour ${memberFor.name}`);
+      setMemberFor(null); load();
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
   };
 
   const resetPwd = async () => {
@@ -156,7 +194,7 @@ function UsersTab() {
 
   return (
     <div>
-      <ErrorBanner error={!modal && !pwdFor ? error : ''} onDismiss={() => setError('')} />
+      <ErrorBanner error={!modal && !pwdFor && !memberFor && !deactFor ? error : ''} onDismiss={() => setError('')} />
       {info && <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.success, marginBottom: 12 }}>✓ {info}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted }}>{users.filter(u => u.is_active).length} comptes actifs · {users.length} au total</div>
@@ -167,7 +205,7 @@ function UsersTab() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans', fontSize: 13 }}>
             <thead>
               <tr style={{ textAlign: 'left', color: T.textDim, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
-                {['Nom', 'Email', 'Rôle', 'Pôle', '2FA', 'Dernière connexion', 'Statut', ''].map(h => <th key={h} style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{h}</th>)}
+                {['Nom', 'Email', 'Rôle', 'Pôle', 'Fiche équipe', '2FA', 'Dernière connexion', 'Statut', ''].map(h => <th key={h} style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -184,6 +222,13 @@ function UsersTab() {
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.email}</td>
                   <td style={{ padding: '12px 16px' }}><RoleChip code={u.role} title={ref.role(u.role)?.description || undefined} /></td>
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.department || '-'}</td>
+                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                    {u.team_member
+                      ? <span style={{ color: T.textMuted }}>{u.team_member.name}{u.team_member.is_active ? '' : <span style={{ color: T.textDim, fontSize: 11 }}> · fiche désactivée</span>}</span>
+                      : canTeam
+                        ? <Btn size="sm" variant="ghost" color={T.teal} onClick={() => openMember(u)}><UserPlus size={12} /> Créer la fiche</Btn>
+                        : <span style={{ color: T.textDim }}>-</span>}
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
                     {mfaOn
                       ? <span style={{ background: `${T.success}26`, color: T.success, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Activée</span>
@@ -292,6 +337,45 @@ function UsersTab() {
         </Field>
         <p style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim, marginTop: 10 }}>L'utilisateur sera déconnecté et devra choisir un nouveau mot de passe à sa prochaine connexion.</p>
         <ModalFooter onCancel={() => setPwdFor(null)} onConfirm={resetPwd} loading={saving} confirmLabel="Réinitialiser" color={T.warning} />
+      </Modal>
+
+      {/* Création de la fiche équipe depuis un compte */}
+      <Modal open={!!memberFor} onClose={() => setMemberFor(null)} title={`Créer la fiche équipe - ${memberFor?.name || ''}`} width={460}>
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
+        <div style={{ display: 'grid', gap: 12 }}>
+          <Field label="Fonction / rôle dans l'organigramme">
+            <Input value={memberForm.role} onChange={v => { setError(''); setMemberForm(p => ({ ...p, role: v })); }} placeholder="Ex: Coordonnateur S&E" />
+          </Field>
+          <Field label="Niveau hiérarchique">
+            <Select value={memberForm.level} onChange={v => setMemberForm(p => ({ ...p, level: v }))}>
+              {!memberForm.level && <option value="">-</option>}
+              {levels.map(l => <option key={l.code} value={String(l.code)}>Niveau {l.code} - {l.label}</option>)}
+            </Select>
+          </Field>
+          <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, lineHeight: 1.6 }}>
+            Le nom, l'email, le téléphone et le pôle sont repris du compte ; les initiales sont calculées automatiquement.
+            La fiche apparaîtra ensuite dans l'organigramme (page Équipe).
+          </div>
+        </div>
+        <ModalFooter onCancel={() => setMemberFor(null)} onConfirm={saveMember} loading={saving} confirmLabel="Créer la fiche" />
+      </Modal>
+
+      {/* Désactivation d'un compte lié à une fiche équipe active */}
+      <Modal open={!!deactFor} onClose={() => setDeactFor(null)} title="Désactiver le compte" width={460}>
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
+        <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>
+          <strong style={{ color: T.text }}>{deactFor?.name}</strong> ne pourra plus se connecter et ses sessions seront fermées.
+        </p>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer', marginTop: 14 }}>
+          <input type="checkbox" checked={deactMember} onChange={e => setDeactMember(e.target.checked)} style={{ marginTop: 3, accentColor: T.teal }} />
+          <span>
+            <span style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.text }}>Désactiver aussi sa fiche équipe</span>
+            <span style={{ display: 'block', fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 2 }}>
+              La fiche « {deactFor?.team_member?.name} » sera retirée de l'organigramme.
+            </span>
+          </span>
+        </label>
+        <ModalFooter onCancel={() => setDeactFor(null)} onConfirm={confirmDeactivate} loading={saving} confirmLabel="Désactiver" color={T.danger} />
       </Modal>
     </div>
   );

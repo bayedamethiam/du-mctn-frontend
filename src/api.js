@@ -271,6 +271,8 @@ export const usersApi = {
   revokeSessions: id       => api.post(`/auth/users/${id}/revoke-sessions`),
   invite:         id       => api.post(`/auth/users/${id}/invite`),
   delete:         id       => api.delete(`/auth/users/${id}`),
+  // Créer la fiche équipe (organigramme) d'un compte existant : { role, level, color? }
+  createTeamMember: (id, d) => api.post(`/auth/users/${id}/team-member`, d),
   loginEvents:    (p = {}) => api.get('/auth/login-events?' + new URLSearchParams(Object.entries(p).filter(([, v]) => v !== '' && v != null))),
 };
 
@@ -279,5 +281,8 @@ export const teamApi = {
   list:   ()        => api.get('/team'),
   create: d         => api.post('/team', d),
   update: (id, d)   => api.put(`/team/${id}`, d),
-  delete: id        => api.delete(`/team/${id}`),
+  // deactivateAccount : désactive aussi le compte lié (droit users.manage côté serveur)
+  delete: (id, { deactivateAccount } = {}) => api.delete(`/team/${id}${deactivateAccount ? '?deactivate_account=1' : ''}`),
+  // Créer l'accès applicatif d'un membre : { email?, role?, password?, send_invite? }
+  createAccount: (id, d) => api.post(`/team/${id}/account`, d),
 };
