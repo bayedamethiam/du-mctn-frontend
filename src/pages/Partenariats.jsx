@@ -6,7 +6,7 @@ import { Card, Badge, Btn, Spinner, ErrorBanner, Modal, Input, Select, Textarea,
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 import Instances from './Instances.jsx';
 
 const SECTIONS = [
@@ -40,9 +40,10 @@ export default function Partenariats() {
   const ref = useRefData();
   const planShort = ref.setting('plan_short');
   const { user } = useAuth();
-  const canWrite  = can(user, 'coordinator');
-  const canDelete = can(user, 'director');
-  const canUpload = can(user, 'analyst');
+  const canWrite  = hasPerm(user, 'partnerships.manage');
+  const canDelete = hasPerm(user, 'partnerships.delete');
+  const canUpload = hasPerm(user, 'partnerships.docs');
+  const canDelDoc = hasPerm(user, 'partnerships.docs.delete');
 
   const [section, setSection]   = useState('partenaires');
   const [items, setItems]       = useState([]);
@@ -318,7 +319,7 @@ export default function Partenariats() {
                                         <button onClick={() => downloadDoc(p.id, doc)} style={{ background:'none', border:'none', fontFamily:'DM Sans', fontSize:13, color:T.teal, cursor:'pointer', padding:0, textAlign:'left' }}>{doc.name}</button>
                                         <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{[ft.label, doc.size, fmtDocDate(doc.date)].filter(Boolean).join(' · ')}</div>
                                       </div>
-                                      {canWrite && <button onClick={() => removeDoc(p.id, doc.id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer' }}
+                                      {canDelDoc && <button onClick={() => removeDoc(p.id, doc.id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer' }}
                                         onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><X size={14}/></button>}
                                     </div>
                                   );

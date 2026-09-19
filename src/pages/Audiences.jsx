@@ -6,7 +6,7 @@ import { Card, Badge, Btn, Select, Textarea, Spinner, ErrorBanner, Modal, ModalF
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 
 const EMPTY = { institution: '', contact: '', date: '', time: '', objet: '', status: '', priority: '', suite_a_donner: '', followup_date: '', notes: '' };
 
@@ -197,8 +197,8 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
 export default function Audiences() {
   const ref = useRefData();
   const { user } = useAuth();
-  const canWrite  = can(user, 'analyst');
-  const canDelete = can(user, 'director');
+  const canWrite  = hasPerm(user, 'audiences.manage');
+  const canDelete = hasPerm(user, 'audiences.delete');
 
   const [items, setItems]           = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);

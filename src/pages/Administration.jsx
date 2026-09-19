@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw } from 'lucide-react';
-import { usersApi, refApi, settingsApi } from '../api.js';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw, ShieldCheck } from 'lucide-react';
+import { usersApi, refApi, settingsApi, rolesApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
-import { isAdmin, can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import PasswordChecklist, { usePasswordPolicy } from '../components/PasswordChecklist.jsx';
-import { Card, Badge, Btn, Input, Select, Textarea, Modal, ModalFooter, Spinner, ErrorBanner, EmptyState } from '../components/UI.jsx';
+import { Card, RoleChip, Btn, Input, Select, Textarea, Modal, ModalFooter, Spinner, ErrorBanner, EmptyState } from '../components/UI.jsx';
 import { checkPassword } from '../utils/passwordPolicy.js';
 import { fmtDateTime, isFuture, shortUserAgent } from '../utils/authFormat.js';
 import { T } from '../theme.js';
 
 /* Libellés et regroupement des référentiels */
 const DOMAINS = [
-  { group: 'Général',            items: [['priority','Priorités'], ['user_role','Rôles utilisateurs']] },
+  { group: 'Général',            items: [['priority','Priorités'], ['user_role','Rôles utilisateurs (couleurs d\'affichage)']] },
   { group: 'Portefeuille',       items: [['program_status','Statuts des programmes'], ['project_status','Statuts de projet (hors phases)'], ['meeting_type','Types de rendez-vous projet']] },
   { group: 'Suivi-Évaluation',   items: [['indicator_category','Catégories d\'indicateurs'], ['indicator_status','Statuts d\'indicateurs'], ['revue_type','Types de revue'], ['revue_status','Statuts de revue'], ['evaluation_status','Statuts d\'évaluation'], ['eval_criteria','Critères d\'évaluation'], ['doc_tag','Catégories de documents']] },
   { group: 'Diligences',         items: [['diligence_type','Types de diligence'], ['diligence_status','Statuts de diligence']] },
@@ -59,11 +59,13 @@ const SETTINGS_FORM = [
   ]},
 ];
 
+/* Chaque onglet s'affiche si l'utilisateur possède au moins un des droits listés */
 const TABS = [
-  { id: 'users',    label: 'Utilisateurs',  icon: Users,      adminOnly: true },
-  { id: 'ref',      label: 'Référentiels',  icon: ListChecks },
-  { id: 'settings', label: 'Paramètres',    icon: Settings },
-  { id: 'logins',   label: 'Journal de connexion', icon: History, minRole: 'director' },
+  { id: 'users',    label: 'Utilisateurs',        icon: Users,       perms: ['users.read', 'users.manage'] },
+  { id: 'roles',    label: 'Rôles & droits',      icon: ShieldCheck, perms: ['roles.manage'] },
+  { id: 'ref',      label: 'Référentiels',        icon: ListChecks,  perms: ['ref.manage'] },
+  { id: 'settings', label: 'Paramètres',          icon: Settings,    perms: ['settings.manage'] },
+  { id: 'logins',   label: 'Journal de connexion', icon: History,    perms: ['audit.read'] },
 ];
 
 const METHOD_LABELS = { password: 'Mot de passe', mfa: '2FA (code OTP)', 'mfa:recovery': '2FA (code de secours)', reset: 'Réinitialisation' };
@@ -93,10 +95,13 @@ function UsersTab() {
   useEffect(() => { load(); }, [load]);
 
   const f = k => v => setForm(p => ({ ...p, [k]: v }));
-  const roles = ref.list('user_role');
+  // Les rôles attribuables viennent de la table roles (chargée par RefContext via rolesApi.list())
+  const roles = ref.roles || [];
 
   const mailEnabled = !!policy?.email_enabled;
-  const openCreate = () => { setError(''); setForm({ name: '', email: '', role: roles[0]?.code || 'analyst', department: '', phone: '', password: '', invite: mailEnabled }); setModal('create'); };
+  // Rôle proposé par défaut : le dernier de la liste (les rôles sont ordonnés du plus large au plus restreint)
+  const defaultRole = roles[roles.length - 1]?.code || 'analyst';
+  const openCreate = () => { setError(''); setForm({ name: '', email: '', role: defaultRole, department: '', phone: '', password: '', invite: mailEnabled }); setModal('create'); };
   const openEdit   = u => { setError(''); setForm({ name: u.name, email: u.email, role: u.role, department: u.department || '', phone: u.phone || '' }); setModal(u); };
 
   const policyError = (pwd, u) => {
@@ -177,7 +182,7 @@ function UsersTab() {
 
                   </td>
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.email}</td>
-                  <td style={{ padding: '12px 16px' }}><Badge status={u.role} domain="user_role" /></td>
+                  <td style={{ padding: '12px 16px' }}><RoleChip code={u.role} title={ref.role(u.role)?.description || undefined} /></td>
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.department || '—'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     {mfaOn
@@ -228,8 +233,10 @@ function UsersTab() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Rôle">
               <Select value={form.role || ''} onChange={f('role')}>
-                {roles.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+                {roles.map(r => <option key={r.code} value={r.code} title={r.description || ''}>{r.label}</option>)}
               </Select>
+              {ref.role(form.role)?.description
+                && <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 5 }}>{ref.role(form.role).description}</div>}
             </Field>
             <Field label="Pôle / département">
               <Select value={form.department || ''} onChange={f('department')}>
@@ -293,6 +300,7 @@ function UsersTab() {
 /* ── Journal de connexion ─────────────────────────────────────── */
 function LoginEventsTab() {
   const { user } = useAuth();
+  const canListUsers = hasPerm(user, 'users.read', 'users.manage');
   const [events, setEvents]   = useState([]);
   const [people, setPeople]   = useState([]);   // options du filtre utilisateur
   const [userId, setUserId]   = useState('');
@@ -305,8 +313,8 @@ function LoginEventsTab() {
     usersApi.loginEvents({ user_id: userId, limit: 200 })
       .then(list => {
         setEvents(list);
-        // Directeur : pas d'accès à la liste des comptes → options déduites du journal
-        if (!userId && !isAdmin(user)) {
+        // Sans droit sur la liste des comptes → options déduites du journal
+        if (!userId && !canListUsers) {
           const seen = new Map();
           list.forEach(e => e.user_id && !seen.has(e.user_id) && seen.set(e.user_id, { id: e.user_id, name: e.user_name || e.email }));
           setPeople(p => [...new Map([...p, ...seen.values()].map(x => [String(x.id), x])).values()]);
@@ -314,12 +322,12 @@ function LoginEventsTab() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [userId, user]);
+  }, [userId, canListUsers]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (isAdmin(user)) usersApi.list().then(list => setPeople(list.map(u => ({ id: u.id, name: u.name })))).catch(() => {});
-  }, [user]);
+    if (canListUsers) usersApi.list().then(list => setPeople(list.map(u => ({ id: u.id, name: u.name })))).catch(() => {});
+  }, [canListUsers]);
 
   const shown = events.filter(e => !result || (result === 'success' ? Number(e.success) : !Number(e.success)));
   const td = { padding: '10px 14px', verticalAlign: 'top' };
@@ -376,6 +384,168 @@ function LoginEventsTab() {
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+/* ── Rôles & droits ───────────────────────────────────────────── */
+const CODE_RE = /^[a-z0-9_]+$/;
+
+function RolesTab() {
+  const ref = useRefData();
+  const [roles, setRoles]     = useState([]);
+  const [catalog, setCatalog] = useState([]);   // [{ key, group, label }]
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
+  const [modal, setModal]     = useState(null); // null | 'create' | rôle
+  const [form, setForm]       = useState({ code: '', label: '', description: '', permissions: [] });
+  const [saving, setSaving]   = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([rolesApi.list(), rolesApi.permissions()])
+      .then(([r, p]) => { setRoles(r); setCatalog(p); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  /* Droits regroupés par famille, dans l'ordre du catalogue */
+  const groups = useMemo(() => {
+    const by = new Map();
+    for (const p of catalog) { if (!by.has(p.group)) by.set(p.group, []); by.get(p.group).push(p); }
+    return [...by.entries()].map(([group, items]) => ({ group, items }));
+  }, [catalog]);
+
+  const allKeys  = catalog.map(p => p.key);
+  const isSystem = !!(modal && modal !== 'create' && Number(modal.is_system));
+  const checked  = isSystem ? allKeys : (form.permissions || []);
+
+  const f = k => v => setForm(p => ({ ...p, [k]: v }));
+
+  const openCreate = () => { setError(''); setForm({ code: '', label: '', description: '', permissions: [] }); setModal('create'); };
+  const openEdit   = r => {
+    setError('');
+    setForm({ code: r.code, label: r.label, description: r.description || '', permissions: r.permissions?.includes('*') ? [...allKeys] : [...(r.permissions || [])] });
+    setModal(r);
+  };
+
+  const toggle = key => setForm(p => ({ ...p, permissions: p.permissions.includes(key) ? p.permissions.filter(k => k !== key) : [...p.permissions, key] }));
+  const setGroup = (keys, on) => setForm(p => ({
+    ...p,
+    permissions: on ? [...new Set([...p.permissions, ...keys])] : p.permissions.filter(k => !keys.includes(k)),
+  }));
+
+  const save = async () => {
+    setError('');
+    if (!form.label.trim()) return setError('Le libellé est obligatoire');
+    if (modal === 'create' && !CODE_RE.test(form.code.trim())) return setError('Code invalide : lettres minuscules, chiffres et « _ » uniquement');
+    setSaving(true);
+    try {
+      if (modal === 'create') await rolesApi.create({ code: form.code.trim(), label: form.label.trim(), description: form.description || null, permissions: form.permissions });
+      // Les droits du rôle système ne sont pas modifiables : on n'envoie que le libellé et la description
+      else await rolesApi.update(modal.id, isSystem
+        ? { label: form.label.trim(), description: form.description || null }
+        : { label: form.label.trim(), description: form.description || null, permissions: form.permissions });
+      setModal(null); load(); ref.reload();
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const remove = async r => {
+    if (!window.confirm(`Supprimer le rôle « ${r.label} » ?\n\nCette action est irréversible. Les comptes doivent d'abord être réaffectés à un autre rôle.`)) return;
+    setError('');
+    try { await rolesApi.delete(r.id); load(); ref.reload(); }
+    catch (e) { setError(e.message); }   // l'API précise le nombre de comptes concernés
+  };
+
+  if (loading) return <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}><Spinner /></div>;
+
+  return (
+    <div>
+      <ErrorBanner error={!modal ? error : ''} onDismiss={() => setError('')} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted }}>{roles.length} rôle(s) · {catalog.length} droits disponibles</div>
+        <Btn onClick={openCreate}><Plus size={14} /> Nouveau rôle</Btn>
+      </div>
+      <Card>
+        {roles.length === 0 ? <EmptyState icon={ShieldCheck} title="Aucun rôle" /> : roles.map((r, idx) => {
+          const sys  = !!Number(r.is_system);
+          const nb   = r.permissions?.includes('*') ? catalog.length : (r.permissions || []).length;
+          return (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderBottom: idx < roles.length - 1 ? `1px solid ${T.border}` : 'none' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 14, color: T.text, fontWeight: 600 }}>{r.label}</span>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: ref.roleColor(r.code), flexShrink: 0 }} />
+                  {sys && <span style={{ background: `${T.warning}22`, color: T.warning, padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>système</span>}
+                </div>
+                {r.description && <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted, marginTop: 3 }}>{r.description}</div>}
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 3 }}>
+                  code : {r.code} · {sys ? 'tous les droits' : `${nb} droit(s) sur ${catalog.length}`} · {r.users_count || 0} compte(s)
+                </div>
+              </div>
+              <Btn size="sm" variant="ghost" onClick={() => openEdit(r)}><Pencil size={12} /></Btn>
+              {!sys && <Btn size="sm" variant="ghost" color={T.danger} onClick={() => remove(r)}><Trash2 size={12} /></Btn>}
+            </div>
+          );
+        })}
+      </Card>
+      <p style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim, marginTop: 10 }}>
+        Le code du rôle est enregistré sur les comptes : il n'est pas modifiable après création. Un rôle encore utilisé ne peut pas être supprimé.
+      </p>
+
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'create' ? 'Nouveau rôle' : `Modifier le rôle — ${modal?.label || ''}`} width={720}>
+        <ErrorBanner error={error} onDismiss={() => setError('')} />
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Libellé"><Input value={form.label} onChange={f('label')} placeholder="Chargé de mission" /></Field>
+            <Field label={modal === 'create' ? 'Code (minuscules, chiffres, « _ »)' : 'Code (non modifiable)'}>
+              <Input value={form.code} onChange={v => f('code')(v.toLowerCase().replace(/[^a-z0-9_]/g, '_'))} disabled={modal !== 'create'} placeholder="charge_mission" />
+            </Field>
+          </div>
+          <Field label="Description"><Textarea value={form.description} onChange={f('description')} rows={2} /></Field>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: T.textDim }}>Droits</span>
+              <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.teal, fontWeight: 600 }}>{checked.length} droits sur {catalog.length}</span>
+            </div>
+            {isSystem && (
+              <div style={{ background: `${T.warning}15`, border: `1px solid ${T.warning}45`, borderRadius: 8, padding: '9px 13px', marginBottom: 10, fontFamily: 'DM Sans', fontSize: 12, color: T.warning }}>
+                Tous les droits, non modifiables
+              </div>
+            )}
+            <div style={{ display: 'grid', gap: 10 }}>
+              {groups.map(g => {
+                const keys = g.items.map(p => p.key);
+                const on   = keys.every(k => checked.includes(k));
+                return (
+                  <div key={g.group} style={{ border: `1px solid ${T.border}`, borderRadius: 10, padding: '10px 14px', background: T.surface }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: T.text }}>{g.group}</span>
+                      <button onClick={() => setGroup(keys, !on)} disabled={isSystem}
+                        style={{ background: 'none', border: 'none', fontFamily: 'DM Sans', fontSize: 11, color: isSystem ? T.textDim : T.teal, cursor: isSystem ? 'default' : 'pointer' }}>
+                        {on ? 'Tout décocher' : 'Tout cocher'}
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 6 }}>
+                      {g.items.map(p => (
+                        <label key={p.key} title={p.key}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: isSystem ? 'default' : 'pointer', opacity: isSystem ? 0.7 : 1 }}>
+                          <input type="checkbox" checked={checked.includes(p.key)} disabled={isSystem} onChange={() => toggle(p.key)} style={{ marginTop: 2, accentColor: T.teal }} />
+                          <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted }}>{p.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <ModalFooter onCancel={() => setModal(null)} onConfirm={save} loading={saving} />
+      </Modal>
     </div>
   );
 }
@@ -545,6 +715,11 @@ function SettingsTab() {
                       ? <Textarea value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} rows={type === 'json' ? Math.min(10, (form[k] || '').split('\n').length + 1) : 2} style={type === 'json' ? { fontFamily: 'monospace', fontSize: 12 } : {}} />
                       : <Input value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} />}
                 </Field>
+                {k === 'mfa_required_roles' && (
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 6 }}>
+                    Codes de rôle disponibles : {(ref.roles || []).map(r => r.code).join(', ') || '—'} · exemple : ["admin","director"]
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -561,8 +736,8 @@ function SettingsTab() {
 export default function Administration() {
   const { user } = useAuth();
   const ref = useRefData();
-  const tabs = TABS.filter(t => (!t.adminOnly || isAdmin(user)) && (!t.minRole || can(user, t.minRole)));
-  const [tab, setTab] = useState(tabs[0].id);
+  const tabs = TABS.filter(t => hasPerm(user, ...t.perms));
+  const [tab, setTab] = useState(tabs[0]?.id);
 
   return (
     <div>
@@ -577,7 +752,9 @@ export default function Administration() {
             </button>
           ))}
         </div>
+        {tabs.length === 0 && <EmptyState icon={Settings} title="Aucun écran accessible" subtitle="Votre rôle ne donne accès à aucune section de l'administration." />}
         {tab === 'users' && <UsersTab />}
+        {tab === 'roles' && <RolesTab />}
         {tab === 'ref' && <RefTab />}
         {tab === 'settings' && <SettingsTab />}
         {tab === 'logins' && <LoginEventsTab />}

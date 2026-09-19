@@ -13,7 +13,7 @@ import Calendrier   from './pages/Calendrier.jsx';
 import Administration from './pages/Administration.jsx';
 import AccountModal from './components/AccountModal.jsx';
 import { dashboardApi } from './api.js';
-import { can } from './permissions.js';
+import { hasPerm, ADMIN_PERMS } from './permissions.js';
 import { Spinner } from './components/UI.jsx';
 import { T } from './theme.js';
 
@@ -49,7 +49,7 @@ export default function App() {
 
   if (!user) return <Login />;
 
-  const V = (view === 'admin' && !can(user, 'director')) ? Dashboard : (VIEWS[view] || Dashboard);
+  const V = (view === 'admin' && !hasPerm(user, ...ADMIN_PERMS)) ? Dashboard : (VIEWS[view] || Dashboard);
   return (
     <Layout view={view} setView={setView} alerts={alerts}>
       <V />

@@ -24,6 +24,19 @@ export const Badge = ({ status, domain, size = 'sm' }) => {
   );
 };
 
+/* Rôle d'un compte : libellé pris dans la table des rôles, couleur du référentiel user_role si elle existe */
+export const RoleChip = ({ code, title, size = 'sm' }) => {
+  const ref = useRefData();
+  const label = ref?.roleLabel?.(code) || code || '—';
+  const color = ref?.roleColor?.(code) || '#94a3b8';   // hex : la transparence est ajoutée en suffixe (…26)
+  return (
+    <span title={title || undefined}
+      style={{ background: `${color}26`, color, padding: size === 'sm' ? '2px 8px' : '4px 12px', borderRadius: 20, fontSize: size === 'sm' ? 11 : 12, fontWeight: 600, fontFamily: 'DM Sans', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
+      {label}
+    </span>
+  );
+};
+
 export const ProgressBar = ({ value, color = T.teal, height = 4 }) => (
   <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: height, height, overflow: 'hidden' }}>
     <div style={{ width: `${Math.min(100, value || 0)}%`, height: '100%', background: `linear-gradient(90deg, ${color}99, ${color})`, borderRadius: height, transition: 'width 0.6s ease' }} />

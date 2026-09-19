@@ -6,7 +6,7 @@ import { Card, Badge, Input, Btn, Select, Spinner, ErrorBanner, Modal, ModalFoot
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 
 const EMPTY = { title: '', source: '', deadline: '', responsible: '', priority: '', type: '', status: '', notes: '' };
 const isLateWith = closed => d => {
@@ -30,8 +30,8 @@ export default function Diligences() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm]         = useState(EMPTY);
   const [editId, setEditId]     = useState(null);
-  const canDelete = can(user, 'director');
-  const canEdit   = can(user, 'analyst');
+  const canDelete = hasPerm(user, 'diligences.delete');
+  const canEdit   = hasPerm(user, 'diligences.manage');
 
   const statuses   = ref.list('diligence_status');
   const priorities = ref.list('priority');

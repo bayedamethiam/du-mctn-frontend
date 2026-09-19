@@ -6,7 +6,7 @@ import { Spinner, ErrorBanner } from '../components/UI.jsx';
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 
 const TYPES = {
   meeting:     { color: '#06b6d4', label: 'RDV Projet'           },
@@ -35,8 +35,8 @@ const EMPTY_EVT = { title: '', date: '', time: '', type: 'Réunion', level: 'int
 export default function Calendrier() {
   const ref = useRefData();
   const { user } = useAuth();
-  const canWrite  = can(user, 'analyst');
-  const canDelete = can(user, 'coordinator');
+  const canWrite  = hasPerm(user, 'events.manage');
+  const canDelete = hasPerm(user, 'events.delete');
   const [rawEvents, setEvents]    = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');

@@ -58,7 +58,9 @@ async function request(method, path, body, isForm = false) {
   const res  = await authFetch(method, path, body ?? undefined, isForm);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error || `Erreur ${res.status}`);
+    // 403 « droit insuffisant » : message uniforme, quel que soit l'écran qui l'affiche
+    const forbidden = res.status === 403 && data.code === 'FORBIDDEN';
+    const err = new Error(forbidden ? 'Votre rôle ne permet pas cette action.' : (data.error || `Erreur ${res.status}`));
     err.status = res.status;
     err.data   = data;
     // 403 bloquants tant que le mot de passe n'est pas changé / la 2FA pas configurée
@@ -240,6 +242,15 @@ export const refApi = {
   create: d         => api.post('/ref', d),
   update: (id, d)   => api.put(`/ref/${id}`, d),
   delete: id        => api.delete(`/ref/${id}`),
+};
+
+// Rôles & droits
+export const rolesApi = {
+  list:        ()       => api.get('/roles'),
+  permissions: ()       => api.get('/roles/permissions'),
+  create:      d        => api.post('/roles', d),
+  update:      (id, d)  => api.put(`/roles/${id}`, d),
+  delete:      id       => api.delete(`/roles/${id}`),
 };
 
 // Paramètres de l'organisation

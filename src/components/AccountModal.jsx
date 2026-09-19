@@ -3,7 +3,7 @@ import { User, Shield, MonitorSmartphone, Copy, Check, ShieldCheck, ShieldOff, R
 import { authApi, usersApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
-import { Modal, ModalFooter, Input, Select, ErrorBanner, Btn, Badge, Spinner } from './UI.jsx';
+import { Modal, ModalFooter, Input, Select, ErrorBanner, Btn, RoleChip, Spinner } from './UI.jsx';
 import PasswordChecklist, { usePasswordPolicy } from './PasswordChecklist.jsx';
 import { checkPassword } from '../utils/passwordPolicy.js';
 import { fmtDateTime, shortUserAgent } from '../utils/authFormat.js';
@@ -234,7 +234,7 @@ function MfaSection() {
             <Btn size="sm" variant="ghost" onClick={() => reset('regen')}><RefreshCw size={12} /> Régénérer les codes de secours</Btn>
             {!mandatory && <Btn size="sm" variant="ghost" color={T.danger} onClick={() => reset('disable')}><ShieldOff size={12} /> Désactiver</Btn>}
           </div>
-          {mandatory && <p style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 8 }}>La désactivation n'est pas possible : la double authentification est obligatoire pour le rôle « {ref.label('user_role', user?.role)} ».</p>}
+          {mandatory && <p style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 8 }}>La désactivation n'est pas possible : la double authentification est obligatoire pour le rôle « {ref.roleLabel(user?.role)} ».</p>}
         </div>
       )}
 
@@ -359,7 +359,7 @@ function ProfileTab() {
           <div><label style={lbl}>Téléphone</label><Input value={profile.phone} onChange={v => setProfile(p => ({ ...p, phone: v }))} placeholder={ref.setting('phone_prefix')} /></div>
         </div>
         <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>
-          {user?.email} · <Badge status={user?.role} domain="user_role" />
+          {user?.email} · <RoleChip code={user?.role} title={ref.role?.(user?.role)?.description || undefined} />
           {user?.last_login_at ? ` · dernière connexion ${fmtDateTime(user.last_login_at)}` : ''}
         </div>
       </div>

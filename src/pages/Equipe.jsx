@@ -6,7 +6,7 @@ import { Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea, Btn,
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 
 const COLORS = ['#06b6d4','#10b981','#8b5cf6','#f59e0b','#3b82f6','#ec4899','#ef4444','#f97316'];
 /* Libellé unique des membres sans pôle (vues Hiérarchie et Pôles) */
@@ -18,7 +18,9 @@ const parseExpertise = m => { if (Array.isArray(m.expertise)) return m.expertise
 export default function Equipe() {
   const ref = useRefData();
   const { user } = useAuth();
-  const canManage = can(user, 'director');
+  const canManage = hasPerm(user, 'team.manage');
+  const canDelete = hasPerm(user, 'team.delete');
+  const canSeeUsers = hasPerm(user, 'users.read', 'users.manage');
 
   const [members, setMembers]   = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -43,8 +45,8 @@ export default function Equipe() {
 
   useEffect(() => {
     programsApi.list().then(setPrograms).catch(() => {});
-    if (canManage) usersApi.list().then(u => setUsers(Array.isArray(u) ? u : (u?.users || null))).catch(() => setUsers(null));
-  }, [canManage]);
+    if (canSeeUsers) usersApi.list().then(u => setUsers(Array.isArray(u) ? u : (u?.users || null))).catch(() => setUsers(null));
+  }, [canSeeUsers]);
 
   const f = k => v => { setFormError(''); setForm(p => ({ ...p, [k]: v })); };
 
@@ -140,7 +142,7 @@ export default function Equipe() {
           </div>
           <div style={{ display:'flex', gap:2, alignItems:'center' }} onClick={e => e.stopPropagation()}>
             {canManage && <button onClick={e => { e.stopPropagation(); openEdit(member); }} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"><Pencil size={12}/></button>}
-            {canManage && (inactive
+            {(inactive ? canManage : canDelete) && (inactive
               ? <button onClick={e => handleReactivate(member.id, e)} style={{ background:'none', border:'none', color:'#10b981', cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Réactiver"><RotateCcw size={12}/></button>
               : <button onClick={e => handleDelete(member.id, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Désactiver"><Trash2 size={12}/></button>)}
             {isSel ? <ChevronUp size={14} color={T.textMuted}/> : <ChevronDown size={14} color={T.textMuted}/>}

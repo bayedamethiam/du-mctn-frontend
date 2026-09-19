@@ -8,7 +8,7 @@ import { Card, Badge, ProgressBar, Btn, Select, Spinner, ErrorBanner,
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 
 /* ── helpers ───────────────────────────────────────────────── */
 /* Progression vers la cible ; direction 'desc' = plus bas est mieux */
@@ -166,10 +166,12 @@ export default function SuiviEval() {
   const seCycle      = Array.isArray(seCycleRaw) ? seCycleRaw : [];
   const revTypeLabels = revTypes.map(t => t.label).filter(Boolean).join(' · ');
   const labelOf      = domain => code => ref.label(domain, code);
-  const canEditInd   = can(user, 'analyst');
-  const canManageInd = can(user, 'coordinator');
-  const canManageRev = can(user, 'coordinator');
-  const canManageEval = can(user, 'director');
+  const canEditInd   = hasPerm(user, 'indicators.update');
+  const canManageInd = hasPerm(user, 'indicators.manage');
+  const canManageRev = hasPerm(user, 'revues.manage');
+  const canManageEval = hasPerm(user, 'evaluations.manage');
+  const canRevDocs   = hasPerm(user, 'revues.docs');          // joindre une pièce jointe de revue
+  const canRevDocsDel= hasPerm(user, 'revues.docs.delete');   // la retirer
 
   const [programs, setPrograms] = useState([]);
   const [tab, setTab]           = useState('overview');
@@ -792,7 +794,7 @@ export default function SuiviEval() {
                                 Pièces jointes ({(r.documents||[]).length})
                               </span>
                             </div>
-                            {canEditInd && (
+                            {canRevDocs && (
                             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                               <Select value={uploadTags[r.id]||defaultTag} onChange={v=>setUploadTags(t=>({...t,[r.id]:v}))} style={{ fontSize:11, padding:'5px 8px' }}>
                                 {docTags.map(t=><option key={t.code} value={t.code}>{t.label}</option>)}
@@ -820,7 +822,7 @@ export default function SuiviEval() {
                                       <div style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim }}>{ft.label} · {doc.size} · {doc.date}</div>
                                     </div>
                                     <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color:T.teal, background:`${T.teal}18`, padding:'3px 8px', borderRadius:8 }}>{ref.label('doc_tag', doc.tag)}</span>
-                                    {canManageRev && <button onClick={()=>removeRevDoc(r.id,doc.id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer' }}
+                                    {canRevDocsDel && <button onClick={()=>removeRevDoc(r.id,doc.id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer' }}
                                       onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}>
                                       <X size={13}/>
                                     </button>}

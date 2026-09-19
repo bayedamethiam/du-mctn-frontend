@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronUp, FolderOpen, Layou
 import { programsApi, teamApi, axesApi, workflowTemplatesApi, projectMeetingsApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Badge, ProgressBar, Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea } from '../components/UI.jsx';
 import { T } from '../theme.js';
@@ -78,20 +78,20 @@ export default function Portefeuille() {
   const { user } = useAuth();
   const ref = useRefData();
 
-  /* Permissions alignées sur authorizeRoles côté backend */
+  /* Droits alignés sur authorize() côté backend (clés de lib/permissions.js) */
   const perms = {
-    progCreate: can(user, 'director', 'admin'),
-    progUpdate: can(user, 'coordinator', 'director', 'admin'),
-    progDelete: can(user, 'director', 'admin'),
-    axes:       can(user, 'director', 'admin'),
-    projCreate: can(user, 'analyst', 'coordinator', 'director', 'admin'),
-    projUpdate: can(user, 'analyst', 'coordinator', 'director', 'admin'),
-    projDelete: can(user, 'director', 'admin'),
-    tplCreate:  can(user, 'coordinator', 'director', 'admin'),
-    tplUpdate:  can(user, 'coordinator', 'director', 'admin'),
-    tplDelete:  can(user, 'director', 'admin'),
-    rdvEdit:    can(user, 'analyst', 'coordinator', 'director', 'admin'),
-    rdvDelete:  can(user, 'coordinator', 'director', 'admin'),
+    progCreate: hasPerm(user, 'programs.create'),
+    progUpdate: hasPerm(user, 'programs.update'),
+    progDelete: hasPerm(user, 'programs.delete'),
+    axes:       hasPerm(user, 'axes.manage'),
+    projCreate: hasPerm(user, 'projects.create'),
+    projUpdate: hasPerm(user, 'projects.update'),
+    projDelete: hasPerm(user, 'projects.delete'),
+    tplCreate:  hasPerm(user, 'templates.manage'),
+    tplUpdate:  hasPerm(user, 'templates.manage'),
+    tplDelete:  hasPerm(user, 'templates.delete'),
+    rdvEdit:    hasPerm(user, 'meetings.manage'),
+    rdvDelete:  hasPerm(user, 'meetings.delete'),
   };
 
   const planShort    = ref.setting('plan_short');

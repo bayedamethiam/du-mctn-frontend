@@ -6,7 +6,7 @@ import { Card, Btn, Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Tex
 import { T } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm } from '../permissions.js';
 
 /* Piliers de score par défaut (surchargés par le paramètre instance_pillars) */
 const PILLARS_FALLBACK = [
@@ -59,10 +59,10 @@ const PillarBar = ({ label, value, max, color }) => (
 export default function Instances({ embedded = false }) {
   const ref = useRefData();
   const { user } = useAuth();
-  const canEditInst     = can(user, 'coordinator');
-  const canDeleteInst   = can(user, 'director');
-  const canEditContrib  = can(user, 'analyst');
-  const canDeleteContrib= can(user, 'coordinator');
+  const canEditInst     = hasPerm(user, 'instances.manage');
+  const canDeleteInst   = hasPerm(user, 'instances.delete');
+  const canEditContrib  = hasPerm(user, 'contributions.manage');
+  const canDeleteContrib= hasPerm(user, 'contributions.delete');
 
   const [items, setItems]       = useState([]);
   const [loading, setLoading]   = useState(true);

@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { refApi, settingsApi } from '../api.js';
+import { refApi, settingsApi, rolesApi } from '../api.js';
 import { useAuth } from './AuthContext.jsx';
 import { SETTINGS_FALLBACK } from '../theme.js';
 
 const RefContext = createContext(null);
+
+const T_NEUTRAL = '#94a3b8';   // couleur (hex, pour la transparence « …26 ») d'un rôle sans couleur au référentiel
 
 // Marqueurs de repli tant que les référentiels ne sont pas chargés (valeurs réelles : ref_lists.meta)
 const FLAG_FALLBACK = {
@@ -28,13 +30,15 @@ export function RefProvider({ children }) {
   const { user } = useAuth();
   const [items, setItems]       = useState([]);
   const [settings, setSettings] = useState({});
+  const [roles, setRoles]       = useState([]);
   const [ready, setReady]       = useState(false);
 
   const reload = useCallback(async () => {
     try {
       if (user) {
-        const [r, s] = await Promise.all([refApi.list(), settingsApi.all()]);
-        setItems(r); setSettings(s);
+        // Les rôles sont facultatifs : une API antérieure sans /roles ne doit pas bloquer le reste
+        const [r, s, ro] = await Promise.all([refApi.list(), settingsApi.all(), rolesApi.list().catch(() => [])]);
+        setItems(r); setSettings(s); setRoles(Array.isArray(ro) ? ro : []);
       } else {
         setSettings(await settingsApi.public());
       }
@@ -75,8 +79,13 @@ export function RefProvider({ children }) {
     const scoreColor = s => s >= t1 ? '#10b981' : s >= t2 ? '#06b6d4' : s >= t3 ? '#f59e0b' : '#ef4444';
     const planPeriod = `${setting('plan_start')}–${setting('plan_end')}`;
 
-    return { ready, items, settings, list, item, label, color, codes, has, setting, json, scoreColor, planPeriod, reload };
-  }, [items, settings, ready, reload]);
+    /* Rôles (table roles) : le libellé vient du rôle, le référentiel user_role sert de repli (libellé, couleur) */
+    const role       = code => roles.find(r => String(r.code) === String(code));
+    const roleLabel  = code => role(code)?.label || label('user_role', code);
+    const roleColor  = (code, fallback = T_NEUTRAL) => item('user_role', code)?.color || fallback;
+
+    return { ready, items, settings, roles, role, roleLabel, roleColor, list, item, label, color, codes, has, setting, json, scoreColor, planPeriod, reload };
+  }, [items, settings, roles, ready, reload]);
 
   return <RefContext.Provider value={value}>{children}</RefContext.Provider>;
 }

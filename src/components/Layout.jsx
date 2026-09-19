@@ -3,7 +3,7 @@ import { BarChart3, FolderKanban, FileText, Handshake, MessageSquare, BarChart2,
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
-import { can } from '../permissions.js';
+import { hasPerm, ADMIN_PERMS } from '../permissions.js';
 import LogoDU from './LogoDU.jsx';
 import AccountModal from './AccountModal.jsx';
 
@@ -21,7 +21,7 @@ export default function Layout({ view, setView, alerts, children }) {
     { id: 'se',           icon: BarChart2,     label: 'Suivi-Évaluation' },
     { id: 'equipe',       icon: Users,         label: 'Équipe' },
     { id: 'calendrier',   icon: CalendarDays,  label: 'Calendrier' },
-    ...(can(user, 'director') ? [{ id: 'admin', icon: Settings, label: 'Administration' }] : []),
+    ...(hasPerm(user, ...ADMIN_PERMS) ? [{ id: 'admin', icon: Settings, label: 'Administration' }] : []),
   ];
   const urgDil = alerts?.critical_diligences?.length || 0;
   const pendAud = alerts?.pending_audience_followups?.length || 0;
@@ -48,7 +48,7 @@ export default function Layout({ view, setView, alerts, children }) {
                 </div>
                 <div>
                   <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: T.text }}>{user?.name}</div>
-                  <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>{ref.label('user_role', user?.role)}{user?.department ? ` · ${user.department}` : ''}</div>
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>{ref.roleLabel(user?.role)}{user?.department ? ` · ${user.department}` : ''}</div>
                 </div>
                 <ChevronDown size={14} color={T.textDim} />
               </div>
