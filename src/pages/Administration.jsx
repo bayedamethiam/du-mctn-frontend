@@ -33,6 +33,7 @@ const SETTINGS_FORM = [
     ['org_short_name','Sigle affiché (logo)'], ['org_subtitle','Sous-titre du logo'], ['org_name','Nom de l\'unité'],
     ['ministry_short','Sigle du ministère'], ['ministry_name','Nom complet du ministère'], ['country','Pays'],
     ['email_domain','Domaine email'], ['phone_prefix','Indicatif téléphonique'],
+    ['app_url','Adresse publique de l\'application (liens envoyés par email)'],
   ]},
   { group: 'Plan stratégique', fields: [
     ['plan_name','Nom du plan'], ['plan_short','Sigle du plan'], ['plan_start','Année de début'], ['plan_end','Année de fin'],
