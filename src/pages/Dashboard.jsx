@@ -199,7 +199,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Colonne droite — Événements à venir */}
+          {/* Colonne droite - Événements à venir */}
           <Card style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <CalendarDays size={16} color={T.teal} />

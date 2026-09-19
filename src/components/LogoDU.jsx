@@ -28,7 +28,7 @@ export default function LogoDU({ size = 'md' }) {
         letterSpacing: 1,
         lineHeight: 1,
         textTransform: 'uppercase',
-      }}>{ref?.setting('org_short_name') || 'DU–MCTN'}</div>
+      }}>{ref?.setting('org_short_name') || 'DU-MCTN'}</div>
 
       {/* Ligne bleue */}
       <div style={{ width: s.bar * 2.8, height: s.line, background: '#3B82F6', borderRadius: 1 }} />

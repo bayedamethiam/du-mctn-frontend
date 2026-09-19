@@ -17,7 +17,7 @@ const TYPES = {
   evenement:   { color: '#6366f1', label: 'Évén. int./nat./rég.' },
 };
 
-/* Mois et jours localisés (Intl) — semaine commençant le lundi (01/01/2024 = lundi) */
+/* Mois et jours localisés (Intl) - semaine commençant le lundi (01/01/2024 = lundi) */
 const cap    = s => s.charAt(0).toUpperCase() + s.slice(1);
 const MONTHS = Array.from({ length: 12 }, (_, i) => cap(new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(new Date(2024, i, 1))));
 const DAYS   = Array.from({ length: 7 }, (_, i) => cap(new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(new Date(2024, 0, 1 + i)).replace('.', '')));

@@ -163,7 +163,7 @@ export default function Diligences() {
                               <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: isLate(d) ? '#ef4444' : T.textMuted, fontWeight: isLate(d) ? 700 : 400 }}>{d.deadline}</span>
                               {isLate(d) && <span style={{ fontSize: 10, fontFamily: 'DM Sans', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 6px', letterSpacing: 0.5 }}>⚠ En retard</span>}
                             </div>
-                          ) : <span style={{ color: T.textDim, fontSize: 12, fontFamily: 'DM Sans' }}>—</span>}
+                          ) : <span style={{ color: T.textDim, fontSize: 12, fontFamily: 'DM Sans' }}>-</span>}
                         </td>
                         <td style={{ padding: '13px 16px', fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted }}>{d.responsible}</td>
                         <td style={{ padding: '13px 16px' }}><Badge status={d.priority} domain="priority" /></td>

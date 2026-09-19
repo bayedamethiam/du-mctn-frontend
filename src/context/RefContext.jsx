@@ -77,7 +77,7 @@ export function RefProvider({ children }) {
     const th = json('score_thresholds', [75, 50, 30]);
     const [t1, t2, t3] = th.length === 3 ? th : [75, 50, 30];
     const scoreColor = s => s >= t1 ? '#10b981' : s >= t2 ? '#06b6d4' : s >= t3 ? '#f59e0b' : '#ef4444';
-    const planPeriod = `${setting('plan_start')}–${setting('plan_end')}`;
+    const planPeriod = `${setting('plan_start')}-${setting('plan_end')}`;
 
     /* Rôles (table roles) : le libellé vient du rôle, le référentiel user_role sert de repli (libellé, couleur) */
     const role       = code => roles.find(r => String(r.code) === String(code));

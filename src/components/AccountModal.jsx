@@ -352,7 +352,7 @@ function ProfileTab() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label style={lbl}>Pôle / département</label>
             <Select value={profile.department} onChange={v => setProfile(p => ({ ...p, department: v }))}>
-              <option value="">—</option>
+              <option value="">-</option>
               {ref.list('team_pole').map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
             </Select>
           </div>

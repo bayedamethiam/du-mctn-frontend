@@ -73,7 +73,7 @@ export default function Equipe() {
   const handleSave = async () => {
     if (!form.name.trim() || !form.role.trim()) return setFormError('Nom complet et fonction / rôle requis');
     const level = parseInt(form.level, 10);
-    if (!Number.isInteger(level)) return setFormError(levelList.length ? 'Niveau hiérarchique requis' : 'Niveau hiérarchique requis — référentiel des niveaux vide (Administration › Référentiels)');
+    if (!Number.isInteger(level)) return setFormError(levelList.length ? 'Niveau hiérarchique requis' : 'Niveau hiérarchique requis - référentiel des niveaux vide (Administration › Référentiels)');
     setSaving(true);
     try {
       const payload = { ...form, level, expertise: form.expertise.split(',').map(s => s.trim()).filter(Boolean) };
@@ -298,8 +298,8 @@ export default function Equipe() {
             <div>
               <label style={lbl}>Niveau hiérarchique *</label>
               <Select value={form.level} onChange={f('level')} style={{ width:'100%' }}>
-                {!form.level && <option value="">—</option>}
-                {levelList.map(l => <option key={l.code} value={String(l.code)}>Niveau {l.code} — {l.label}</option>)}
+                {!form.level && <option value="">-</option>}
+                {levelList.map(l => <option key={l.code} value={String(l.code)}>Niveau {l.code} - {l.label}</option>)}
                 {form.level && !levelList.some(l => String(l.code) === form.level) && <option value={form.level}>Niveau {form.level}</option>}
               </Select>
             </div>
@@ -329,7 +329,7 @@ export default function Equipe() {
             </div>
           </div>
           <div>
-            <label style={lbl}>Expertises (séparées par des virgules — les codes programme, ex. P08, sont reconnus)</label>
+            <label style={lbl}>Expertises (séparées par des virgules - les codes programme, ex. P08, sont reconnus)</label>
             <Input value={form.expertise} onChange={f('expertise')} placeholder="Ex: Suivi-Évaluation, Indicateurs, P05"/>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -346,7 +346,7 @@ export default function Equipe() {
             <div>
               <label style={lbl}>Compte utilisateur associé</label>
               <Select value={form.user_id} onChange={f('user_id')} style={{ width:'100%' }}>
-                <option value="">— Aucun —</option>
+                <option value="">- Aucun -</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}{u.email ? ` · ${u.email}` : ''}</option>)}
               </Select>
             </div>

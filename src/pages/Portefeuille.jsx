@@ -68,7 +68,7 @@ const CircleProgress = ({ pct, color = '#06b6d4', size = 38 }) => {
   );
 };
 
-const ProjBadge = ({ color = T.textDim, label = '—' }) => (
+const ProjBadge = ({ color = T.textDim, label = '-' }) => (
   <span style={{ background: `${color}18`, color, fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, border: `1px solid ${color}30`, whiteSpace: 'nowrap' }}>
     {label}
   </span>
@@ -271,7 +271,7 @@ export default function Portefeuille() {
   };
   const handleDeleteProg = async (p, e) => {
     e.stopPropagation();
-    if (!window.confirm(`Supprimer le programme « ${p.code} — ${p.name} » et tous ses projets ?`)) return;
+    if (!window.confirm(`Supprimer le programme « ${p.code} - ${p.name} » et tous ses projets ?`)) return;
     try {
       await programsApi.delete(p.id);
       setPrograms(ps => ps.filter(x => x.id !== p.id));
@@ -485,7 +485,7 @@ export default function Portefeuille() {
       </div>
 
       {/* ── Modal créer / modifier programme ── */}
-      <Modal open={progModal} onClose={() => setProgModal(false)} title={editProg ? `Modifier — ${editProg.code}` : 'Nouveau programme'} width={480}>
+      <Modal open={progModal} onClose={() => setProgModal(false)} title={editProg ? `Modifier - ${editProg.code}` : 'Nouveau programme'} width={480}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 12 }}>
             <div>
@@ -500,7 +500,7 @@ export default function Portefeuille() {
           <div>
             <label style={lbl}>Axe {planShort} *</label>
             <Select value={progForm.axis_id} onChange={v => setProgForm(f => ({ ...f, axis_id: v }))} style={{ width: '100%' }}>
-              <option value="">— Sélectionner un axe —</option>
+              <option value="">- Sélectionner un axe -</option>
               {axes.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
             </Select>
           </div>
@@ -516,7 +516,7 @@ export default function Portefeuille() {
             <div>
               <label style={lbl}>Avancement (%)</label>
               <Input value={progressMode === 'projects' && editProg?.projects_progress != null ? String(editProg.projects_progress) : progForm.progress}
-                onChange={v => setProgForm(f => ({ ...f, progress: v }))} type="number" placeholder="0–100" disabled={progressMode === 'projects'} />
+                onChange={v => setProgForm(f => ({ ...f, progress: v }))} type="number" placeholder="0-100" disabled={progressMode === 'projects'} />
             </div>
             <div>
               <label style={lbl}>Statut</label>
@@ -529,7 +529,7 @@ export default function Portefeuille() {
           {(progressMode === 'projects' || (editProg && editProg.projects_progress != null)) && (
             <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: -6, lineHeight: 1.5 }}>
               {progressMode === 'projects'
-                ? <>Avancement calculé automatiquement depuis les projets (pondéré par budget){editProg?.projects_progress == null ? ' — aucun projet : valeur manuelle conservée' : ''}.</>
+                ? <>Avancement calculé automatiquement depuis les projets (pondéré par budget){editProg?.projects_progress == null ? ' - aucun projet : valeur manuelle conservée' : ''}.</>
                 : <>Avancement calculé depuis les projets : <b style={{ color: '#06b6d4' }}>{editProg.projects_progress}%</b> (saisie manuelle : {progForm.progress || 0}%).</>}
             </div>
           )}
@@ -637,7 +637,7 @@ export default function Portefeuille() {
           <div>
             <label style={lbl}>Chef de projet</label>
             <Select value={projForm.responsible} onChange={v => setProjForm(f => ({ ...f, responsible: v }))} style={{ width: '100%' }}>
-              <option value="">— Non assigné —</option>
+              <option value="">- Non assigné -</option>
               {teamMembers.map(m => <option key={m.id} value={m.name}>{m.name} · {m.role}</option>)}
             </Select>
           </div>
@@ -755,7 +755,7 @@ export default function Portefeuille() {
       </Modal>
 
       {/* ── Modal Rendez-vous projet ── */}
-      <Modal open={rdvModal} onClose={() => setRdvModal(false)} title={`Rendez-vous — ${rdvProject?.name || ''}`} width={580}>
+      <Modal open={rdvModal} onClose={() => setRdvModal(false)} title={`Rendez-vous - ${rdvProject?.name || ''}`} width={580}>
         {/* Formulaire ajout/édition */}
         {perms.rdvEdit && (
         <div style={{ background: 'rgba(6,182,212,0.04)', border: `1px solid rgba(6,182,212,0.15)`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>

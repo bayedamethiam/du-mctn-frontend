@@ -14,7 +14,7 @@ const PILLARS_FALLBACK = [
   { key:'postes', label:'Postes', max:20 },     { key:'suivi', label:'Suivi', max:10 },
 ];
 
-/* Clés de score disponibles côté base (colonnes score_*) — les piliers d'autres clés sont ignorés */
+/* Clés de score disponibles côté base (colonnes score_*) - les piliers d'autres clés sont ignorés */
 const SCORE_KEYS = ['presence','contribution','postes','suivi'];
 
 const INST_EMPTY = { acronym:'', name:'', category:'', siege:'', niveau:'membre', responsible:'', focal:'', ndt_link:'', priority:'moyenne', mandats:'', gaps:'', next_meeting_label:'', next_meeting_date:'', next_meeting_lieu:'' };
@@ -91,7 +91,7 @@ export default function Instances({ embedded = false }) {
   /* Référentiels & paramètres */
   const cats      = ref.list('instance_category');
   const catColor  = code => ref.color('instance_category', code, T.teal);
-  const niv       = code => { const it = ref.item('instance_level', code); return { label: it?.label || code || '—', color: it?.color || T.teal, strong: !!it?.meta?.strong }; };
+  const niv       = code => { const it = ref.item('instance_level', code); return { label: it?.label || code || '-', color: it?.color || T.teal, strong: !!it?.meta?.strong }; };
   const pillarsRaw = ref.json('instance_pillars', PILLARS_FALLBACK);
   const pillarsOk = Array.isArray(pillarsRaw) ? pillarsRaw.filter(p => p && SCORE_KEYS.includes(p.key)) : [];
   const pillars   = pillarsOk.length ? pillarsOk : PILLARS_FALLBACK;
@@ -138,7 +138,7 @@ export default function Instances({ embedded = false }) {
 
   const handleSaveInst = async () => {
     if (!instForm.acronym || !instForm.name) return setError('Acronyme et nom requis');
-    if (!instForm.category) return setError(cats.length ? 'Catégorie requise' : 'Catégorie requise — référentiel des catégories non chargé ou vide (Administration › Référentiels)');
+    if (!instForm.category) return setError(cats.length ? 'Catégorie requise' : 'Catégorie requise - référentiel des catégories non chargé ou vide (Administration › Référentiels)');
     for (const p of pillars) {
       const v = Number(instForm[`score_${p.key}`] || 0);
       if (!Number.isInteger(v) || v < 0 || v > Number(p.max)) return setError(`Score « ${p.label} » : nombre entier entre 0 et ${p.max}`);
@@ -248,7 +248,7 @@ export default function Instances({ embedded = false }) {
   return (
     <div className={embedded ? undefined : 'fade-in'}>
       {!embedded && (
-        <HeroBanner eyebrow="Représentation internationale" title={country ? `Présence internationale — ${country}` : 'Présence internationale'}
+        <HeroBanner eyebrow="Représentation internationale" title={country ? `Présence internationale - ${country}` : 'Présence internationale'}
           subtitle={`Qualité de présence et contributions techniques · ${planLabel}`} color="#8b5cf6"
           stats={[
             { value:`${avgScore}/100`, label:'Score moyen', color:ref.scoreColor(avgScore) },
@@ -267,7 +267,7 @@ export default function Instances({ embedded = false }) {
               <div style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:'#f59e0b', letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>{totalGaps} lacunes identifiées · Priorités d'action {planShort}</div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                 {items.filter(isCritical).map(i=>(
-                  <span key={i.id} style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:600, background:'#ef444420', color:'#ef4444', padding:'3px 10px', borderRadius:20, border:'1px solid #ef444430' }}>{i.acronym} — {(i.gaps||[]).length} lacune{(i.gaps||[]).length>1?'s':''}</span>
+                  <span key={i.id} style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:600, background:'#ef444420', color:'#ef4444', padding:'3px 10px', borderRadius:20, border:'1px solid #ef444430' }}>{i.acronym} - {(i.gaps||[]).length} lacune{(i.gaps||[]).length>1?'s':''}</span>
                 ))}
               </div>
             </div>
@@ -383,7 +383,7 @@ export default function Instances({ embedded = false }) {
                         <div>
                           <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>Lien {planShort}</div>
                           <div style={{ background:`${catC}15`, borderRadius:8, padding:'8px 10px', border:`1px solid ${catC}25` }}>
-                            <span style={{ fontFamily:'DM Sans', fontSize:11, color:catC }}>{inst.ndt_link || '—'}</span>
+                            <span style={{ fontFamily:'DM Sans', fontSize:11, color:catC }}>{inst.ndt_link || '-'}</span>
                           </div>
                           <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:8, lineHeight:1.6 }}>
                             <div>Catégorie : <span style={{ color:T.textMuted }}>{ref.label('instance_category', inst.category)}</span></div>
@@ -479,15 +479,15 @@ export default function Instances({ embedded = false }) {
           </div>
           <div>
             <label style={lbl}>Lien {planShort}</label>
-            <Input value={instForm.ndt_link} onChange={fi('ndt_link')} placeholder="Ex: Axe 1 — Infrastructure · P09 Innovation & IA"/>
+            <Input value={instForm.ndt_link} onChange={fi('ndt_link')} placeholder="Ex: Axe 1 - Infrastructure · P09 Innovation & IA"/>
           </div>
           <div>
             <label style={lbl}>Scores par pilier (total sur {maxTotal})</label>
             <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(pillars.length, 4)},1fr)`, gap:10 }}>
               {pillars.map(p => (
                 <div key={p.key}>
-                  <label style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, display:'block', marginBottom:4 }}>{p.label} (0–{p.max})</label>
-                  <IntInput value={instForm[`score_${p.key}`] ?? ''} onChange={fi(`score_${p.key}`)} max={Number(p.max)} placeholder={`0–${p.max}`}/>
+                  <label style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim, display:'block', marginBottom:4 }}>{p.label} (0-{p.max})</label>
+                  <IntInput value={instForm[`score_${p.key}`] ?? ''} onChange={fi(`score_${p.key}`)} max={Number(p.max)} placeholder={`0-${p.max}`}/>
                 </div>
               ))}
             </div>

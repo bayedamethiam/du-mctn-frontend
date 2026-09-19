@@ -69,7 +69,7 @@ const TABS = [
 ];
 
 const METHOD_LABELS = { password: 'Mot de passe', mfa: '2FA (code OTP)', 'mfa:recovery': '2FA (code de secours)', reset: 'Réinitialisation' };
-const methodLabel = m => METHOD_LABELS[m] || m || '—';
+const methodLabel = m => METHOD_LABELS[m] || m || '-';
 
 const lbl = { fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, display: 'block', marginBottom: 5 };
 const Field = ({ label, children }) => <div><label style={lbl}>{label}</label>{children}</div>;
@@ -183,11 +183,11 @@ function UsersTab() {
                   </td>
                   <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.email}</td>
                   <td style={{ padding: '12px 16px' }}><RoleChip code={u.role} title={ref.role(u.role)?.description || undefined} /></td>
-                  <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.department || '—'}</td>
+                  <td style={{ padding: '12px 16px', color: T.textMuted }}>{u.department || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     {mfaOn
                       ? <span style={{ background: `${T.success}26`, color: T.success, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Activée</span>
-                      : <span style={{ color: T.textDim }}>—</span>}
+                      : <span style={{ color: T.textDim }}>-</span>}
                   </td>
                   <td style={{ padding: '12px 16px', color: T.textMuted, whiteSpace: 'nowrap', fontSize: 12 }}>{fmtDateTime(u.last_login_at, 'Jamais')}</td>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
@@ -240,7 +240,7 @@ function UsersTab() {
             </Field>
             <Field label="Pôle / département">
               <Select value={form.department || ''} onChange={f('department')}>
-                <option value="">—</option>
+                <option value="">-</option>
                 {ref.list('team_pole').map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
               </Select>
             </Field>
@@ -279,7 +279,7 @@ function UsersTab() {
         <ModalFooter onCancel={() => setModal(null)} onConfirm={save} loading={saving} />
       </Modal>
 
-      <Modal open={!!pwdFor} onClose={() => setPwdFor(null)} title={`Réinitialiser le mot de passe — ${pwdFor?.name || ''}`}>
+      <Modal open={!!pwdFor} onClose={() => setPwdFor(null)} title={`Réinitialiser le mot de passe - ${pwdFor?.name || ''}`}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <Field label="Nouveau mot de passe provisoire">
           <div style={{ position: 'relative' }}>
@@ -366,7 +366,7 @@ function LoginEventsTab() {
                     <tr key={e.id} style={{ borderBottom: `1px solid ${T.border}` }}>
                       <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }}>{fmtDateTime(e.created_at)}</td>
                       <td style={td}>
-                        <div style={{ color: T.text, fontWeight: 600 }}>{e.user_name || '—'}</div>
+                        <div style={{ color: T.text, fontWeight: 600 }}>{e.user_name || '-'}</div>
                         <div style={{ color: T.textDim, fontSize: 11 }}>{e.email}</div>
                       </td>
                       <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }}>{methodLabel(e.method)}</td>
@@ -374,8 +374,8 @@ function LoginEventsTab() {
                         <span style={{ color: ok ? T.success : T.danger, fontWeight: 700 }}>{ok ? '✓' : '✗'}</span>
                         {!ok && e.reason && <span style={{ color: T.textMuted, marginLeft: 6 }}>{e.reason}</span>}
                       </td>
-                      <td style={{ ...td, color: T.textMuted, fontFamily: 'monospace', fontSize: 11 }}>{e.ip || '—'}</td>
-                      <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }} title={e.user_agent || ''}>{e.user_agent ? shortUserAgent(e.user_agent) : '—'}</td>
+                      <td style={{ ...td, color: T.textMuted, fontFamily: 'monospace', fontSize: 11 }}>{e.ip || '-'}</td>
+                      <td style={{ ...td, color: T.textMuted, whiteSpace: 'nowrap' }} title={e.user_agent || ''}>{e.user_agent ? shortUserAgent(e.user_agent) : '-'}</td>
                     </tr>
                   );
                 })}
@@ -495,7 +495,7 @@ function RolesTab() {
         Le code du rôle est enregistré sur les comptes : il n'est pas modifiable après création. Un rôle encore utilisé ne peut pas être supprimé.
       </p>
 
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'create' ? 'Nouveau rôle' : `Modifier le rôle — ${modal?.label || ''}`} width={720}>
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'create' ? 'Nouveau rôle' : `Modifier le rôle - ${modal?.label || ''}`} width={720}>
         <ErrorBanner error={error} onDismiss={() => setError('')} />
         <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -643,7 +643,7 @@ function RefTab() {
         </p>
       </div>
 
-      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'create' ? `Ajouter — ${domainLabel}` : 'Modifier la valeur'}>
+      <Modal open={!!modal} onClose={() => setModal(null)} title={modal === 'create' ? `Ajouter - ${domainLabel}` : 'Modifier la valeur'}>
         <div style={{ display: 'grid', gap: 12 }}>
           <Field label="Libellé"><Input value={form.label || ''} onChange={f('label')} /></Field>
           <Field label={modal === 'create' ? 'Code (laisser vide = libellé)' : 'Code (non modifiable)'}>
@@ -655,7 +655,7 @@ function RefTab() {
               <Input value={form.color || ''} onChange={f('color')} style={{ flex: 1 }} />
             </div>
           </Field>
-          <Field label="Métadonnées (JSON, optionnel — ex. {&quot;desc&quot;:&quot;…&quot;} ou {&quot;strong&quot;:true})">
+          <Field label="Métadonnées (JSON, optionnel - ex. {&quot;desc&quot;:&quot;…&quot;} ou {&quot;strong&quot;:true})">
             <Textarea value={form.meta || ''} onChange={f('meta')} rows={2} />
           </Field>
         </div>
@@ -717,7 +717,7 @@ function SettingsTab() {
                 </Field>
                 {k === 'mfa_required_roles' && (
                   <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 6 }}>
-                    Codes de rôle disponibles : {(ref.roles || []).map(r => r.code).join(', ') || '—'} · exemple : ["admin","director"]
+                    Codes de rôle disponibles : {(ref.roles || []).map(r => r.code).join(', ') || '-'} · exemple : ["admin","director"]
                   </div>
                 )}
               </div>

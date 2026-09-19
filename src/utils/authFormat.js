@@ -7,7 +7,7 @@ export function parseServerDate(v) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function fmtDateTime(v, fallback = '—') {
+export function fmtDateTime(v, fallback = '-') {
   const d = parseServerDate(v);
   return d ? d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : fallback;
 }

@@ -27,7 +27,7 @@ export const Badge = ({ status, domain, size = 'sm' }) => {
 /* Rôle d'un compte : libellé pris dans la table des rôles, couleur du référentiel user_role si elle existe */
 export const RoleChip = ({ code, title, size = 'sm' }) => {
   const ref = useRefData();
-  const label = ref?.roleLabel?.(code) || code || '—';
+  const label = ref?.roleLabel?.(code) || code || '-';
   const color = ref?.roleColor?.(code) || '#94a3b8';   // hex : la transparence est ajoutée en suffixe (…26)
   return (
     <span title={title || undefined}

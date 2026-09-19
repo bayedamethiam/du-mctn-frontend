@@ -76,7 +76,7 @@ export default function Partenariats() {
     : 'Représentation internationale · Documents & suivi des accords';
   const TYPES = [{ id:'all', label:'Tous', color:T.teal }, ...typeList.map(t => ({ id:t.code, label:t.label, color:t.color || T.teal }))];
   /* Type inconnu du référentiel : code brut affiché (jamais « Tous ») */
-  const typeConf = code => { const it = ref.item('partnership_type', code); return it ? { label:it.label, color:it.color || T.teal } : { label:code || '—', color:T.textDim }; };
+  const typeConf = code => { const it = ref.item('partnership_type', code); return it ? { label:it.label, color:it.color || T.teal } : { label:code || '-', color:T.textDim }; };
 
   /* Liens : codes de programme existants (programmes entiers) ou ids de projets ; le reste = liens historiques */
   const programByCode = code => programs.find(pg => String(pg.code).toLowerCase() === String(code).toLowerCase());
@@ -174,7 +174,7 @@ export default function Partenariats() {
   const groups = [
     ...programs.map(pg => ({ code:pg.code, name:pg.name, color:pg.color || T.teal, projs: allProjects.filter(p => p.program_code === pg.code) })),
     ...(allProjects.some(p => !p.program_code || !programs.some(pg => pg.code === p.program_code))
-      ? [{ code:null, name:'—', color:T.textDim, projs: allProjects.filter(p => !p.program_code || !programs.some(pg => pg.code === p.program_code)) }] : []),
+      ? [{ code:null, name:'-', color:T.textDim, projs: allProjects.filter(p => !p.program_code || !programs.some(pg => pg.code === p.program_code)) }] : []),
   ];
   const unknownLinks = form.projects.filter(id => !resolveLink(id));
 
@@ -276,7 +276,7 @@ export default function Partenariats() {
                           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
                             <div>
                               <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>Description</p>
-                              <p style={{ fontFamily:'DM Sans', fontSize:13, color:T.textMuted, lineHeight:1.6 }}>{p.description || '—'}</p>
+                              <p style={{ fontFamily:'DM Sans', fontSize:13, color:T.textMuted, lineHeight:1.6 }}>{p.description || '-'}</p>
                             </div>
                             <div>
                               <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>Contact</p>
@@ -342,7 +342,7 @@ export default function Partenariats() {
             <Field label="Nom *"><Input value={form.name} onChange={v=>f('name',v)} placeholder="Banque Mondiale"/></Field>
             <Field label="Type *">
               <Select value={form.type} onChange={v=>f('type',v)} style={{ width:'100%' }}>
-                {!form.type && <option value="">—</option>}
+                {!form.type && <option value="">-</option>}
                 {typeOpts.map(t=><option key={t.code} value={t.code}>{t.label}</option>)}
               </Select>
             </Field>
@@ -388,7 +388,7 @@ export default function Partenariats() {
                   {groups.map(g => {
                     const progChecked = g.code && form.projects.some(x => x.toLowerCase() === String(g.code).toLowerCase());
                     return (
-                      <div key={g.code || '—'}>
+                      <div key={g.code || '-'}>
                         {g.code
                           ? <label style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px 3px', cursor:'pointer', background: progChecked ? `${g.color}10` : 'transparent' }} title="Associer le programme entier">
                               <input type="checkbox" checked={!!progChecked}

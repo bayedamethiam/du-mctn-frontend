@@ -32,7 +32,7 @@ export const statusConf = {
 
 // Valeurs de repli si l'API /settings est indisponible (les valeurs réelles sont modifiables dans Administration)
 export const SETTINGS_FALLBACK = {
-  org_short_name: 'DU–MCTN', org_subtitle: 'Delivery Unit', org_name: 'Delivery Unit',
+  org_short_name: 'DU-MCTN', org_subtitle: 'Delivery Unit', org_name: 'Delivery Unit',
   ministry_short: 'MCTN', ministry_name: 'Ministère de la Communication, des Télécommunications et du Numérique',
   country: 'Sénégal', plan_name: 'New Deal Technologique', plan_short: 'NDT', plan_start: '2025', plan_end: '2034',
   currency_unit: 'Md FCFA', email_domain: 'mctn.sn', phone_prefix: '+221',

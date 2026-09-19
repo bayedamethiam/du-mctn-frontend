@@ -33,7 +33,7 @@ const memberOf = (teamMembers, ac) =>
 function ResponsibleSelect({ value, onChange, teamMembers, style }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)} style={{ ...inpStyle, cursor: 'pointer', ...style }}>
-      <option value="">— Responsable —</option>
+      <option value="">- Responsable -</option>
       {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name} · {m.role}</option>)}
     </select>
   );
@@ -346,7 +346,7 @@ export default function Audiences() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <h4 style={{ fontFamily: 'EB Garamond', fontSize: 17, color: T.text }}>{a.institution}</h4>
-                          {a.contact && <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim }}>— {a.contact}</span>}
+                          {a.contact && <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textDim }}>- {a.contact}</span>}
                           <Badge status={a.priority} domain="priority" /><Badge status={a.status} domain="audience_status" />
                         </div>
                         <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted, marginTop: 3 }}>{a.objet}</div>

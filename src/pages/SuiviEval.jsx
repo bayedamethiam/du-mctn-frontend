@@ -28,7 +28,7 @@ const fmtNum = (v, compact) => {
   return n.toLocaleString('fr-FR');
 };
 const fmtVal = (v, unit, compact = false) => {
-  if (v == null || v === '' || isNaN(Number(v))) return '—';
+  if (v == null || v === '' || isNaN(Number(v))) return '-';
   const s = fmtNum(v, compact);
   if (!unit) return s;
   return unit === '%' ? `${s}%` : `${s} ${unit}`;
@@ -483,7 +483,7 @@ export default function SuiviEval() {
             {stats?.programs?.length > 0 && (
               <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px 24px', marginBottom:28 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4 }}>
-                  <h3 style={{ fontFamily:'EB Garamond', fontSize:20, color:T.text, margin:0 }}>Portefeuille {planShort} — Avancement par programme</h3>
+                  <h3 style={{ fontFamily:'EB Garamond', fontSize:20, color:T.text, margin:0 }}>Portefeuille {planShort} - Avancement par programme</h3>
                   <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:scoreColor(avgProg) }}>{avgProg}% moy. programmes</span>
                 </div>
                 <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginBottom:16 }}>
@@ -557,7 +557,7 @@ export default function SuiviEval() {
 
             {/* Cycle S&E */}
             <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:'20px 24px' }}>
-              <h3 style={{ fontFamily:'EB Garamond', fontSize:20, color:T.text, marginBottom:16 }}>Cycle de pilotage S&E — {orgName}</h3>
+              <h3 style={{ fontFamily:'EB Garamond', fontSize:20, color:T.text, marginBottom:16 }}>Cycle de pilotage S&E - {orgName}</h3>
               <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(seCycle.length, 4) || 1},1fr)`, gap:12 }}>
                 {(Array.isArray(seCycle) ? seCycle : []).map((c, i) => ({ ...c, color: c.color || T.teal, icon: CYCLE_ICONS[i % CYCLE_ICONS.length] })).map((c, i) => (
                   <div key={i} style={{ background:`${c.color}10`, border:`1px solid ${c.color}25`, borderRadius:10, padding:'14px 16px' }}>
@@ -637,7 +637,7 @@ export default function SuiviEval() {
                       </div>
                       <div style={{ flexShrink:0, textAlign:'right', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                         <Gauge value={p} size={52}/>
-                        <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim }}>{ind.last_update || '—'}</div>
+                        <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim }}>{ind.last_update || '-'}</div>
                         <div style={{ display:'flex', gap:2 }}>
                           {canEditInd && <button onClick={e => openEditInd(ind, e)} title="Modifier"
                             style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'2px 4px', borderRadius:4 }}
@@ -686,7 +686,7 @@ export default function SuiviEval() {
                           <div>
                             <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:10 }}>Programme {planShort} associé</div>
                             <div style={{ background:`${cat.color}15`, border:`1px solid ${cat.color}25`, borderRadius:8, padding:'10px 14px' }}>
-                              <span style={{ fontFamily:'DM Sans', fontSize:12, color:cat.color, fontWeight:600 }}>{ind.program || '—'}</span>
+                              <span style={{ fontFamily:'DM Sans', fontSize:12, color:cat.color, fontWeight:600 }}>{ind.program || '-'}</span>
                               {ind.program_name && <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textMuted, marginTop:3 }}>{ind.program_name}</div>}
                             </div>
                             {ind.program_progress != null && (
@@ -968,7 +968,7 @@ export default function SuiviEval() {
       </div>
 
       {/* ── Modal indicateur ── */}
-      <Modal open={indModal} onClose={() => setIndModal(false)} title={editingInd ? `Modifier ${editingInd.code} — ${editingInd.label?.slice(0,40)}` : 'Nouvel indicateur'} width={620}>
+      <Modal open={indModal} onClose={() => setIndModal(false)} title={editingInd ? `Modifier ${editingInd.code} - ${editingInd.label?.slice(0,40)}` : 'Nouvel indicateur'} width={620}>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <ErrorBanner error={error} onDismiss={() => setError('')}/>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 3fr', gap:12 }}>
@@ -1019,8 +1019,8 @@ export default function SuiviEval() {
             <div>
               <label style={lbl}>Programme {planShort}</label>
               <Select value={indForm.program} onChange={inf('program')} style={{ width:'100%' }}>
-                <option value="">— Aucun —</option>
-                {programs.map(p => <option key={p.code} value={p.code}>{p.code} — {p.name}</option>)}
+                <option value="">- Aucun -</option>
+                {programs.map(p => <option key={p.code} value={p.code}>{p.code} - {p.name}</option>)}
                 {indForm.program && !programs.some(p => p.code === indForm.program) && <option value={indForm.program}>{indForm.program}</option>}
               </Select>
             </div>
@@ -1033,7 +1033,7 @@ export default function SuiviEval() {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Tendance annuelle ({indForm.unit || '—'}/an)</label>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Tendance annuelle ({indForm.unit || '-'}/an)</label>
               <Input value={indForm.trend} onChange={inf('trend')} type="number" placeholder="0"/>
             </div>
             <div>
@@ -1107,11 +1107,11 @@ export default function SuiviEval() {
           </div>
           {ref.has('evaluation_status', evalForm.statut, 'closed') && (<>
             <div>
-              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Note globale (0–100)</label>
+              <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Note globale (0-100)</label>
               <Input value={evalForm.note_globale} onChange={ef('note_globale')} type="number" placeholder="75"/>
             </div>
             <div>
-              <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:T.textDim, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Notes par critère (0–100)</p>
+              <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:T.textDim, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Notes par critère (0-100)</p>
               <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(criteria.length, 5) || 1},1fr)`, gap:8 }}>
                 {criteria.map(({ code:k, label:l }) => (
                   <div key={k}>
@@ -1159,7 +1159,7 @@ export default function SuiviEval() {
           </div>
           <div>
             <label style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 }}>Titre *</label>
-            <Input value={revForm.titre} onChange={rf('titre')} placeholder={`Ex: ${revTypes[0]?.label || 'Revue'} — ${planShort} ${curYear}`}/>
+            <Input value={revForm.titre} onChange={rf('titre')} placeholder={`Ex: ${revTypes[0]?.label || 'Revue'} - ${planShort} ${curYear}`}/>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
