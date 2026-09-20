@@ -20,7 +20,7 @@ export const ADMIN_PERMS = ['users.read', 'users.manage', 'roles.manage', 'ref.m
 const LEGACY_MIN_ROLE = {
   'projects.create': 'analyst', 'projects.update': 'analyst', 'meetings.manage': 'analyst',
   'diligences.manage': 'analyst', 'audiences.manage': 'analyst', 'partnerships.docs': 'analyst',
-  'revues.docs': 'analyst', 'indicators.update': 'analyst', 'contributions.manage': 'analyst',
+  'revues.docs': 'analyst', 'revues.docs.delete': 'coordinator', 'indicators.update': 'analyst', 'contributions.manage': 'analyst',
   'programs.update': 'coordinator', 'templates.manage': 'coordinator', 'meetings.delete': 'coordinator',
   'indicators.manage': 'coordinator', 'revues.manage': 'coordinator', 'partnerships.manage': 'coordinator',
   'partnerships.docs.delete': 'coordinator', 'instances.manage': 'coordinator', 'contributions.delete': 'coordinator',

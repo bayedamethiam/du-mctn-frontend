@@ -105,6 +105,8 @@ function UsersTab() {
   const roles = ref.roles || [];
 
   const mailEnabled = !!policy?.email_enabled;
+  // users.read donne la consultation ; toutes les actions exigent users.manage
+  const canManageUsers = hasPerm(me, 'users.manage');
   // Rôle proposé par défaut : le dernier de la liste (les rôles sont ordonnés du plus large au plus restreint)
   const defaultRole = roles[roles.length - 1]?.code || 'analyst';
   const openCreate = () => { setError(''); setForm({ name: '', email: '', role: defaultRole, department: '', phone: '', password: '', invite: mailEnabled }); setModal('create'); };
@@ -198,7 +200,7 @@ function UsersTab() {
       {info && <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.success, marginBottom: 12 }}>✓ {info}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.textMuted }}>{users.filter(u => u.is_active).length} comptes actifs · {users.length} au total</div>
-        <Btn onClick={openCreate}><Plus size={14} /> Nouveau compte</Btn>
+        {canManageUsers && <Btn onClick={openCreate}><Plus size={14} /> Nouveau compte</Btn>}
       </div>
       <Card>
         <div style={{ overflowX: 'auto' }}>
@@ -236,7 +238,7 @@ function UsersTab() {
                   </td>
                   <td style={{ padding: '12px 16px', color: T.textMuted, whiteSpace: 'nowrap', fontSize: 12 }}>{fmtDateTime(u.last_login_at, 'Jamais')}</td>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
-                    <button onClick={() => toggleActive(u)} disabled={u.id === me?.id}
+                    <button onClick={() => canManageUsers && toggleActive(u)} disabled={u.id === me?.id || !canManageUsers}
                       style={{ background: 'none', border: 'none', cursor: u.id === me?.id ? 'default' : 'pointer', fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: u.is_active ? T.success : T.textDim }}>
                       {u.is_active ? '● Actif' : '○ Désactivé'}
                     </button>
@@ -249,7 +251,7 @@ function UsersTab() {
                     )}
                   </td>
                   <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                    <span title="Modifier"><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}><Pencil size={12} /></Btn></span>{' '}
+                    {canManageUsers && <><span title="Modifier"><Btn size="sm" variant="ghost" onClick={() => openEdit(u)}><Pencil size={12} /></Btn></span>{' '}
                     {mailEnabled && !!u.is_active && <><span title="Renvoyer l'invitation par email"><Btn size="sm" variant="ghost" color={T.teal}
                       onClick={() => resendInvite(u)}><Mail size={12} /></Btn></span>{' '}</>}
                     <span title="Réinitialiser le mot de passe"><Btn size="sm" variant="ghost" color={T.warning} onClick={() => { setError(''); setShowPwd(false); setForm({ password: '' }); setPwdFor(u); }}><KeyRound size={12} /></Btn></span>{' '}
@@ -260,7 +262,7 @@ function UsersTab() {
                     {u.id !== me?.id && <span title="Supprimer définitivement le compte"><Btn size="sm" variant="ghost" color={T.danger}
                       onClick={() => secAction(
                         `Supprimer définitivement le compte de ${u.name} (${u.email}) ?\n\nCette action est irréversible. Pour retirer l'accès en gardant la trace du compte, préférez « Désactivé ».`,
-                        () => usersApi.delete(u.id), `Compte de ${u.name} supprimé`)}><Trash2 size={12} /></Btn></span>}
+                        () => usersApi.delete(u.id), `Compte de ${u.name} supprimé`)}><Trash2 size={12} /></Btn></span>}</>}
                   </td>
                 </tr>
                 );

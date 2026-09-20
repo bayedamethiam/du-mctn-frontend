@@ -992,6 +992,7 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
 
 /* ── Carte Programme (style new_version) ── */
 function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency, progressMode, defaultPhases, closedStatuses = [], onEditProg, onDeleteProg, onCreateProj, onEditProj, onDeleteProj, onRDV }) {
+  const ref = useRefData();   // libellés des statuts de projet hors phases
   const pColor = prog.color || '#06b6d4';
   const hasProjProgress = prog.projects_progress != null;
   const budgetGap = (prog.projects_count || 0) > 0 && Math.abs((Number(prog.budget) || 0) - (Number(prog.projects_budget) || 0)) > 0.005;
