@@ -7,7 +7,7 @@ import { Modal, ModalFooter, Input, Select, ErrorBanner, Btn, RoleChip, Spinner 
 import PasswordChecklist, { usePasswordPolicy } from './PasswordChecklist.jsx';
 import { checkPassword } from '../utils/passwordPolicy.js';
 import { fmtDateTime, shortUserAgent } from '../utils/authFormat.js';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 
 const lbl  = { fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, display: 'block', marginBottom: 5 };
 const sect = { fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: T.textDim, marginBottom: 10 };
@@ -82,7 +82,7 @@ function PasswordSection({ forced, onDone }) {
       {forced
         ? <ModalFooter onConfirm={save} loading={saving} />
         : <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-            <Btn size="sm" onClick={save} disabled={saving}>{saving ? <Spinner size={12} color="#fff" /> : 'Changer le mot de passe'}</Btn>
+            <Btn size="sm" onClick={save} disabled={saving}>{saving ? <Spinner size={12} color={T.onAccent} /> : 'Changer le mot de passe'}</Btn>
           </div>}
     </div>
   );
@@ -92,7 +92,7 @@ function PasswordSection({ forced, onDone }) {
 function RecoveryCodes({ codes, onAck }) {
   return (
     <div>
-      <div style={{ background: `${T.warning}15`, border: `1px solid ${T.warning}55`, borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontFamily: 'DM Sans', fontSize: 12, color: T.warning }}>
+      <div style={{ background: `${alpha(T.warning, 8)}`, border: `1px solid ${alpha(T.warning, 33)}`, borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontFamily: 'DM Sans', fontSize: 12, color: T.warning }}>
         Conservez ces codes de secours en lieu sûr : ils ne seront plus affichés. Chaque code ne peut servir qu'une fois si vous perdez l'accès à votre application d'authentification.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
@@ -163,7 +163,7 @@ function MfaSetupFlow({ onEnabled, onCancel, autoStart = false }) {
       <label style={lbl}>Code de vérification</label>
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>{codeInput(code, v => setCode(v.replace(/\D/g, '').slice(0, 6)), { numeric: true })}</div>
-        <Btn onClick={enable} disabled={loading}>{loading ? <Spinner size={14} color="#fff" /> : 'Activer'}</Btn>
+        <Btn onClick={enable} disabled={loading}>{loading ? <Spinner size={14} color={T.onAccent} /> : 'Activer'}</Btn>
       </div>
       {onCancel && <div style={{ marginTop: 10 }}><Btn size="sm" variant="outline" color={T.textMuted} onClick={onCancel}>Annuler</Btn></div>}
     </div>
@@ -244,7 +244,7 @@ function MfaSection() {
           <div><label style={lbl}>Code de vérification</label>{codeInput(form.code, v => setForm(p => ({ ...p, code: v })), { placeholder: '000000 ou XXXX-XXXX' })}</div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <Btn size="sm" variant="outline" color={T.textMuted} onClick={() => reset('idle')}>Annuler</Btn>
-            <Btn size="sm" onClick={regen} disabled={saving || !form.code}>{saving ? <Spinner size={12} color="#fff" /> : 'Régénérer'}</Btn>
+            <Btn size="sm" onClick={regen} disabled={saving || !form.code}>{saving ? <Spinner size={12} color={T.onAccent} /> : 'Régénérer'}</Btn>
           </div>
         </div>
       )}
@@ -258,7 +258,7 @@ function MfaSection() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <Btn size="sm" variant="outline" color={T.textMuted} onClick={() => reset('idle')}>Annuler</Btn>
-            <Btn size="sm" color={T.danger} onClick={disable} disabled={saving || !form.password || !form.code}>{saving ? <Spinner size={12} color="#fff" /> : 'Désactiver la 2FA'}</Btn>
+            <Btn size="sm" color={T.danger} onClick={disable} disabled={saving || !form.password || !form.code}>{saving ? <Spinner size={12} color={T.onAccent} /> : 'Désactiver la 2FA'}</Btn>
           </div>
         </div>
       )}
@@ -296,12 +296,12 @@ function SessionsTab() {
       <div style={{ display: 'grid', gap: 8 }}>
         {sessions.length === 0 && <p style={txt}>Aucune session active.</p>}
         {sessions.map(s => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: T.surface2, border: `1px solid ${s.current ? `${T.teal}55` : T.border}`, borderRadius: 8 }}>
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: T.surface2, border: `1px solid ${s.current ? `${alpha(T.teal, 33)}` : T.border}`, borderRadius: 8 }}>
             <MonitorSmartphone size={18} color={s.current ? T.teal : T.textDim} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }} title={s.user_agent || ''}>
                 {shortUserAgent(s.user_agent)}
-                {s.current && <span style={{ background: `${T.teal}26`, color: T.teal, padding: '1px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>Cette session</span>}
+                {s.current && <span style={{ background: `${alpha(T.teal, 15)}`, color: T.teal, padding: '1px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>Cette session</span>}
               </div>
               <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>
                 {s.ip || 'IP inconnue'} · dernière activité {fmtDateTime(s.last_used_at || s.created_at)} · ouverte le {fmtDateTime(s.created_at)}
@@ -417,7 +417,7 @@ export default function AccountModal({ open, onClose, forced = false }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${tab === t.id ? T.teal : T.border}`, background: tab === t.id ? `${T.teal}18` : 'transparent', color: tab === t.id ? T.teal : T.textMuted }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${tab === t.id ? T.teal : T.border}`, background: tab === t.id ? `${alpha(T.teal, 9)}` : 'transparent', color: tab === t.id ? T.teal : T.textMuted }}>
             <t.icon size={13} />{t.label}
           </button>
         ))}

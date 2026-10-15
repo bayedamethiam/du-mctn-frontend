@@ -5,7 +5,7 @@ import { seApi, programsApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, ProgressBar, Btn, Select, Spinner, ErrorBanner,
          Modal, ModalFooter, Input } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -79,7 +79,7 @@ const Gauge = ({ value, size = 52 }) => {
   return (
     <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
       <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={6}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={T.track} strokeWidth={6}/>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={6}
           strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
           style={{ transition:'stroke-dashoffset 0.8s ease' }}/>
@@ -129,14 +129,14 @@ const RadarChart = ({ notes = {}, criteria = [], size = 130 }) => {
   const grid60   = axes.map((_, i) => pt(i, 60)).map(p => `${p.x},${p.y}`).join(' ');
   return (
     <svg width={size} height={size}>
-      <polygon points={gridStr} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={1}/>
-      <polygon points={grid80}  fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={1}/>
-      <polygon points={grid60}  fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={1}/>
-      {axes.map((_, i) => { const e = pt(i, 100); return <line key={i} x1={cx} y1={cy} x2={e.x} y2={e.y} stroke="rgba(255,255,255,0.08)" strokeWidth={1}/>; })}
-      <polygon points={polyStr} fill={`${T.teal}33`} stroke={T.teal} strokeWidth={1.5}/>
+      <polygon points={gridStr} fill="none" stroke={T.border} strokeWidth={1}/>
+      <polygon points={grid80}  fill="none" stroke={T.track} strokeWidth={1}/>
+      <polygon points={grid60}  fill="none" stroke={T.track} strokeWidth={1}/>
+      {axes.map((_, i) => { const e = pt(i, 100); return <line key={i} x1={cx} y1={cy} x2={e.x} y2={e.y} stroke={T.border} strokeWidth={1}/>; })}
+      <polygon points={polyStr} fill={`${alpha(T.teal, 20)}`} stroke={T.teal} strokeWidth={1.5}/>
       {axes.map((ax, i) => { const e = pt(i, 120); return (
         <text key={i} x={e.x} y={e.y} textAnchor="middle" dominantBaseline="middle"
-          style={{ fontFamily:'DM Sans', fontSize:8, fill:'rgba(255,255,255,0.45)' }}>{ax.label}</text>
+          style={{ fontFamily:'DM Sans', fontSize:8, fill:T.textMuted }}>{ax.label}</text>
       ); })}
       {poly.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={3} fill={T.teal}/>)}
     </svg>
@@ -420,7 +420,7 @@ export default function SuiviEval() {
         ]}/>
 
       {/* Sous-onglets */}
-      <div style={{ display:'flex', gap:0, borderBottom:`1px solid ${T.border}`, padding:'0 28px', background:'rgba(255,255,255,0.015)', position:'sticky', top:0, zIndex:10 }}>
+      <div style={{ display:'flex', gap:0, borderBottom:`1px solid ${T.border}`, padding:'0 28px', background:T.surface, position:'sticky', top:0, zIndex:10 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'DM Sans', fontSize:12, fontWeight:tab===t.id?600:400, padding:'15px 20px', background:'none', border:'none', borderBottom:`2px solid ${tab===t.id?T.teal:'transparent'}`, color:tab===t.id?T.teal:T.textMuted, cursor:'pointer', transition:'all 0.2s', whiteSpace:'nowrap' }}>
@@ -436,19 +436,19 @@ export default function SuiviEval() {
         {tab === 'overview' && (
           <div>
             {/* Bannière ambition */}
-            <div style={{ background:'linear-gradient(135deg,#0d2a0d,#0a2210 40%,#071a2a)', border:`1px solid #10b98133`, borderRadius:14, padding:'20px 28px', marginBottom:24, display:'flex', alignItems:'center', gap:20, position:'relative', overflow:'hidden' }}>
+            <div style={{ background:`linear-gradient(135deg,${T.heroFrom},${T.heroVia} 40%,${T.heroTo})`, border:`1px solid #10b98133`, borderRadius:14, padding:'20px 28px', marginBottom:24, display:'flex', alignItems:'center', gap:20, position:'relative', overflow:'hidden' }}>
               <div style={{ position:'absolute', right:-30, top:-30, width:200, height:200, background:'radial-gradient(circle,#10b98115,transparent 70%)', borderRadius:'50%' }}/>
               <div style={{ width:60, height:60, borderRadius:14, background:'linear-gradient(135deg,#f59e0b,#d97706)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                <Award size={28} color="#fff"/>
+                <Award size={28} color={T.onAccent}/>
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:2.5, textTransform:'uppercase', color:'#f59e0b', marginBottom:6 }}>Ambition stratégique · {ref.setting('plan_name')}</div>
-                <div style={{ fontFamily:'EB Garamond', fontSize:22, fontWeight:500, color:T.text, lineHeight:1.2 }}>{ref.setting('plan_ambition')}</div>
-                <div style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, marginTop:6 }}>{[`${nInd} indicateur${nInd>1?'s':''} suivi${nInd>1?'s':''}`, orgName && `Suivi piloté par ${orgName}`, revTypeLabels].filter(Boolean).join(' · ')}</div>
+                <div style={{ fontFamily:'EB Garamond', fontSize:22, fontWeight:500, color:T.onAccent, lineHeight:1.2 }}>{ref.setting('plan_ambition')}</div>
+                <div style={{ fontFamily:'DM Sans', fontSize:12, color:'rgba(255,255,255,0.65)', marginTop:6 }}>{[`${nInd} indicateur${nInd>1?'s':''} suivi${nInd>1?'s':''}`, orgName && `Suivi piloté par ${orgName}`, revTypeLabels].filter(Boolean).join(' · ')}</div>
               </div>
               <div style={{ textAlign:'center', flexShrink:0 }}>
                 <div style={{ fontFamily:'EB Garamond', fontSize:42, fontWeight:600, color:'#f59e0b', lineHeight:1 }}>{avgProg}%</div>
-                <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:3 }}>avancement moy. programmes</div>
+                <div style={{ fontFamily:'DM Sans', fontSize:11, color:'rgba(255,255,255,0.38)', marginTop:3 }}>avancement moy. programmes</div>
               </div>
             </div>
 
@@ -461,18 +461,18 @@ export default function SuiviEval() {
                     : ref.has('indicator_status', g.code, 'alert') ? AlertTriangle : Clock,
                 ids:g.inds.map(i => i.code),
               })).map((s,i) => (
-                <div key={i} style={{ background:T.surface, border:`1px solid ${s.color}33`, borderRadius:12, padding:'18px 20px', borderLeft:`4px solid ${s.color}` }}>
+                <div key={i} style={{ background:T.surface, border:`1px solid ${alpha(s.color, 20)}`, borderRadius:12, padding:'18px 20px', borderLeft:`4px solid ${s.color}` }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                     <div>
                       <div style={{ fontFamily:'EB Garamond', fontSize:42, fontWeight:500, color:s.color, lineHeight:1 }}>{s.count}</div>
                       <div style={{ fontFamily:'DM Sans', fontSize:13, fontWeight:600, color:T.text, marginTop:4 }}>{s.label}</div>
                       <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:2 }}>{s.sub}</div>
                     </div>
-                    <div style={{ background:`${s.color}20`, borderRadius:10, padding:10 }}><s.icon size={18} color={s.color}/></div>
+                    <div style={{ background:`${alpha(s.color, 13)}`, borderRadius:10, padding:10 }}><s.icon size={18} color={s.color}/></div>
                   </div>
                   <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
                     {s.ids.map(code => (
-                      <span key={code} style={{ background:`${s.color}18`, color:s.color, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6 }}>{code}</span>
+                      <span key={code} style={{ background:`${alpha(s.color, 13)}`, color:s.color, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6 }}>{code}</span>
                     ))}
                   </div>
                 </div>
@@ -496,7 +496,7 @@ export default function SuiviEval() {
                     const scol = ref.color('program_status', prog.status, '#ef4444');
                     return (
                       <div key={prog.code} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 13px', background:T.surface2, borderRadius:8, border:`1px solid ${T.border}` }}>
-                        <div style={{ width:36, height:36, borderRadius:7, background:`${scol}20`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${scol}30` }}>
+                        <div style={{ width:36, height:36, borderRadius:7, background:`${alpha(scol, 13)}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${alpha(scol, 19)}` }}>
                           <span style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:800, color:scol }}>{prog.code}</span>
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
@@ -560,7 +560,7 @@ export default function SuiviEval() {
               <h3 style={{ fontFamily:'EB Garamond', fontSize:20, color:T.text, marginBottom:16 }}>Cycle de pilotage S&E - {orgName}</h3>
               <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(seCycle.length, 4) || 1},1fr)`, gap:12 }}>
                 {(Array.isArray(seCycle) ? seCycle : []).map((c, i) => ({ ...c, color: c.color || T.teal, icon: CYCLE_ICONS[i % CYCLE_ICONS.length] })).map((c, i) => (
-                  <div key={i} style={{ background:`${c.color}10`, border:`1px solid ${c.color}25`, borderRadius:10, padding:'14px 16px' }}>
+                  <div key={i} style={{ background:`${alpha(c.color, 13)}`, border:`1px solid ${alpha(c.color, 15)}`, borderRadius:10, padding:'14px 16px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
                       <c.icon size={16} color={c.color}/>
                       <span style={{ fontFamily:'DM Sans', fontSize:12, fontWeight:700, color:c.color }}>{c.freq}</span>
@@ -583,7 +583,7 @@ export default function SuiviEval() {
                   const col = c.color || T.teal;
                   return (
                   <button key={c.code} onClick={() => setCatF(c.code)}
-                    style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:500, padding:'7px 13px', borderRadius:8, border:`1px solid ${catF===c.code?col:T.border}`, background:catF===c.code?`${col}20`:T.surface, color:catF===c.code?col:T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>
+                    style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:500, padding:'7px 13px', borderRadius:8, border:`1px solid ${catF===c.code?col:T.border}`, background:catF===c.code?`${alpha(col, 13)}`:T.surface, color:catF===c.code?col:T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>
                     {c.label}
                   </button>
                   );
@@ -593,7 +593,7 @@ export default function SuiviEval() {
               <div style={{ display:'flex', gap:6 }}>
                 {[['all','Tous'], ...indStatuses.map(s => [s.code, s.label])].map(([v,l]) => (
                   <button key={v} onClick={() => setStatusF(v)}
-                    style={{ fontFamily:'DM Sans', fontSize:11, padding:'7px 13px', borderRadius:8, border:`1px solid ${statusF===v?T.teal:T.border}`, background:statusF===v?`${T.teal}20`:T.surface, color:statusF===v?T.teal:T.textMuted, cursor:'pointer' }}>
+                    style={{ fontFamily:'DM Sans', fontSize:11, padding:'7px 13px', borderRadius:8, border:`1px solid ${statusF===v?T.teal:T.border}`, background:statusF===v?`${alpha(T.teal, 13)}`:T.surface, color:statusF===v?T.teal:T.textMuted, cursor:'pointer' }}>
                     {l}
                   </button>
                 ))}
@@ -612,7 +612,7 @@ export default function SuiviEval() {
                     <div style={{ padding:'16px 20px', cursor:'pointer', display:'flex', alignItems:'center', gap:16 }}
                       onClick={() => setSelInd(isOpen ? null : ind.id)}>
                       {/* Code badge */}
-                      <div style={{ width:44, height:44, borderRadius:10, background:`${cat.color}20`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${cat.color}33` }}>
+                      <div style={{ width:44, height:44, borderRadius:10, background:`${alpha(cat.color, 13)}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${alpha(cat.color, 20)}` }}>
                         <span style={{ fontFamily:'DM Sans', fontSize:12, fontWeight:800, color:cat.color }}>{ind.code}</span>
                       </div>
                       <div style={{ flex:1 }}>
@@ -664,7 +664,7 @@ export default function SuiviEval() {
                               {(ind.milestones||[]).map((m, i) => {
                                 const isCur = String(m.year) === curYear;
                                 return (
-                                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 10px', background:isCur?`${cat.color}18`:T.surface2, borderRadius:6, border:isCur?`1px solid ${cat.color}33`:'none' }}>
+                                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 10px', background:isCur?`${alpha(cat.color, 9)}`:T.surface2, borderRadius:6, border:isCur?`1px solid ${alpha(cat.color, 20)}`:'none' }}>
                                     <span style={{ fontFamily:'DM Sans', fontSize:11, color:isCur?cat.color:T.textDim, fontWeight:isCur?700:400 }}>{m.year}</span>
                                     <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:isCur?cat.color:T.textMuted }}>{fmtVal(m.value, ind.unit, true)}</span>
                                     {isCur && <span style={{ fontFamily:'DM Sans', fontSize:9, color:cat.color }}>● actuel</span>}
@@ -685,7 +685,7 @@ export default function SuiviEval() {
                           {/* Programme NDT */}
                           <div>
                             <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:10 }}>Programme {planShort} associé</div>
-                            <div style={{ background:`${cat.color}15`, border:`1px solid ${cat.color}25`, borderRadius:8, padding:'10px 14px' }}>
+                            <div style={{ background:`${alpha(cat.color, 13)}`, border:`1px solid ${alpha(cat.color, 15)}`, borderRadius:8, padding:'10px 14px' }}>
                               <span style={{ fontFamily:'DM Sans', fontSize:12, color:cat.color, fontWeight:600 }}>{ind.program || '-'}</span>
                               {ind.program_name && <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textMuted, marginTop:3 }}>{ind.program_name}</div>}
                             </div>
@@ -726,7 +726,7 @@ export default function SuiviEval() {
           <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
             <div>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, background:`${T.teal}12`, border:`1px solid ${T.teal}25`, borderRadius:8, padding:'7px 14px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:`${alpha(T.teal, 8)}`, border:`1px solid ${alpha(T.teal, 15)}`, borderRadius:8, padding:'7px 14px' }}>
                   <Paperclip size={13} color={T.teal}/>
                   <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.teal, fontWeight:600 }}>
                     {revues.reduce((s,r)=>s+(r.documents||[]).length,0)} documents joints
@@ -743,22 +743,22 @@ export default function SuiviEval() {
                   const isExp = expRevue === r.id;
                   return (
                     <Card key={r.id} style={{ border:`1px solid ${isExp?tc.color+'44':T.border}` }}>
-                      <div style={{ height:3, background:`linear-gradient(90deg,${tc.color}99,transparent)`, borderRadius:'12px 12px 0 0' }}/>
+                      <div style={{ height:3, background:`linear-gradient(90deg,${alpha(tc.color, 60)},transparent)`, borderRadius:'12px 12px 0 0' }}/>
                       <div style={{ padding:'14px 18px', cursor:'pointer', display:'flex', alignItems:'flex-start', gap:14 }}
                         onClick={() => setExpRevue(isExp?null:r.id)}>
-                        <div style={{ background:`${tc.color}20`, border:`1px solid ${tc.color}33`, borderRadius:10, padding:'8px 12px', textAlign:'center', flexShrink:0, minWidth:58 }}>
+                        <div style={{ background:`${alpha(tc.color, 13)}`, border:`1px solid ${alpha(tc.color, 20)}`, borderRadius:10, padding:'8px 12px', textAlign:'center', flexShrink:0, minWidth:58 }}>
                           <div style={{ fontFamily:'DM Sans', fontSize:18, fontWeight:800, color:tc.color, lineHeight:1 }}>{r.date?.slice(8,10)}</div>
                           <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim, textTransform:'uppercase' }}>{new Date(r.date+'T12:00:00').toLocaleString('fr-FR',{month:'short'})}</div>
                           <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim }}>{r.date?.slice(0,4)}</div>
                         </div>
                         <div style={{ flex:1 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginBottom:5 }}>
-                            <span style={{ background:`${tc.color}20`, color:tc.color, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10 }}>{tc.label}</span>
-                            <span style={{ background:`${stc}26`, color:stc, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10 }}>
+                            <span style={{ background:`${alpha(tc.color, 13)}`, color:tc.color, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10 }}>{tc.label}</span>
+                            <span style={{ background:`${alpha(stc, 15)}`, color:stc, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10 }}>
                               {held ? '✓' : '○'} {ref.label('revue_status', r.statut)}
                             </span>
                             {(r.documents||[]).length>0 && (
-                              <span style={{ display:'inline-flex', alignItems:'center', gap:4, background:`${tc.color}15`, color:tc.color, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10 }}>
+                              <span style={{ display:'inline-flex', alignItems:'center', gap:4, background:`${alpha(tc.color, 13)}`, color:tc.color, fontFamily:'DM Sans', fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10 }}>
                                 <Paperclip size={9}/>{r.documents.length}
                               </span>
                             )}
@@ -814,14 +814,14 @@ export default function SuiviEval() {
                                 const ft = FT[doc.file_type]||FT.default;
                                 return (
                                   <div key={doc.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:T.surface2, borderRadius:9, border:`1px solid ${T.border}` }}>
-                                    <div style={{ width:32, height:32, borderRadius:6, background:`${ft.color}22`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                    <div style={{ width:32, height:32, borderRadius:6, background:`${alpha(ft.color, 13)}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
                                       <File size={14} color={ft.color}/>
                                     </div>
                                     <div style={{ flex:1 }}>
                                       <button onClick={()=>downloadRevDoc(r.id,doc)}style={{ background:'none', border:'none', fontFamily:'DM Sans', fontSize:12, color:T.teal, cursor:'pointer', padding:0 }}>{doc.name}</button>
                                       <div style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim }}>{ft.label} · {doc.size} · {doc.date}</div>
                                     </div>
-                                    <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color:T.teal, background:`${T.teal}18`, padding:'3px 8px', borderRadius:8 }}>{ref.label('doc_tag', doc.tag)}</span>
+                                    <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color:T.teal, background:`${alpha(T.teal, 9)}`, padding:'3px 8px', borderRadius:8 }}>{ref.label('doc_tag', doc.tag)}</span>
                                     {canRevDocsDel && <button onClick={()=>removeRevDoc(r.id,doc.id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer' }}
                                       onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}>
                                       <X size={13}/>
@@ -880,13 +880,13 @@ export default function SuiviEval() {
               const notes = ev.notes_json && typeof ev.notes_json === 'object' ? ev.notes_json : {};
               return (
                 <Card key={ev.id}>
-                  <div style={{ height:4, background:`linear-gradient(90deg,${sc},${sc}88)` }}/>
+                  <div style={{ height:4, background:`linear-gradient(90deg,${sc},${alpha(sc, 53)})` }}/>
                   <div style={{ padding:'20px 24px' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
                       <div>
                         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
                           <h3 style={{ fontFamily:'EB Garamond', fontSize:22, color:T.text }}>Évaluation {ev.annee}</h3>
-                          <span style={{ background:`${sc}20`, color:sc, fontFamily:'DM Sans', fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:10 }}>
+                          <span style={{ background:`${alpha(sc, 13)}`, color:sc, fontFamily:'DM Sans', fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:10 }}>
                             {isDone ? '✓' : '○'} {ref.label('evaluation_status', ev.statut)}
                           </span>
                           {canManageEval && <>
@@ -915,7 +915,7 @@ export default function SuiviEval() {
                         <div>
                           <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:10 }}>Conclusions</div>
                           {concl.map((c,i) => (
-                            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid rgba(255,255,255,0.04)` }}>
+                            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid ${T.border}` }}>
                               <div style={{ width:5, height:5, borderRadius:'50%', background:'#10b981', marginTop:5, flexShrink:0 }}/>
                               <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, lineHeight:1.6 }}>{c}</span>
                             </div>
@@ -935,7 +935,7 @@ export default function SuiviEval() {
                         <div>
                           <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:10 }}>Recommandations</div>
                           {recs.map((r,i) => (
-                            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid rgba(255,255,255,0.04)` }}>
+                            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid ${T.border}` }}>
                               <div style={{ width:5, height:5, borderRadius:'50%', background:T.teal, marginTop:5, flexShrink:0 }}/>
                               <span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, lineHeight:1.6 }}>{r}</span>
                             </div>

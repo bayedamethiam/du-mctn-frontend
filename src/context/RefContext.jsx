@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { refApi, settingsApi, rolesApi } from '../api.js';
 import { useAuth } from './AuthContext.jsx';
 import { SETTINGS_FALLBACK } from '../theme.js';
+import { useTheme } from './ThemeContext.jsx';
 
 const RefContext = createContext(null);
 
@@ -28,6 +29,7 @@ const parseJson = (v, fallback) => {
 
 export function RefProvider({ children }) {
   const { user } = useAuth();
+  const { setDefault: setDefaultTheme } = useTheme();
   const [items, setItems]       = useState([]);
   const [settings, setSettings] = useState({});
   const [roles, setRoles]       = useState([]);
@@ -47,6 +49,9 @@ export function RefProvider({ children }) {
   }, [user]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Apparence proposée par l'organisation, appliquée tant que l'utilisateur n'a pas choisi la sienne
+  useEffect(() => { if (settings.default_theme) setDefaultTheme(settings.default_theme); }, [settings.default_theme, setDefaultTheme]);
 
   const value = useMemo(() => {
     const byDomain = {};

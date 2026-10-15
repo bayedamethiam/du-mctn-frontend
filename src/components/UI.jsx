@@ -1,4 +1,4 @@
-import { T, statusConf } from '../theme.js';
+import { T, statusConf, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 
 export const Card = ({ children, style = {}, hover = false, onClick }) => (
@@ -31,15 +31,15 @@ export const RoleChip = ({ code, title, size = 'sm' }) => {
   const color = ref?.roleColor?.(code) || '#94a3b8';   // hex : la transparence est ajoutée en suffixe (…26)
   return (
     <span title={title || undefined}
-      style={{ background: `${color}26`, color, padding: size === 'sm' ? '2px 8px' : '4px 12px', borderRadius: 20, fontSize: size === 'sm' ? 11 : 12, fontWeight: 600, fontFamily: 'DM Sans', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
+      style={{ background: `${alpha(color, 15)}`, color, padding: size === 'sm' ? '2px 8px' : '4px 12px', borderRadius: 20, fontSize: size === 'sm' ? 11 : 12, fontWeight: 600, fontFamily: 'DM Sans', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
       {label}
     </span>
   );
 };
 
 export const ProgressBar = ({ value, color = T.teal, height = 4 }) => (
-  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: height, height, overflow: 'hidden' }}>
-    <div style={{ width: `${Math.min(100, value || 0)}%`, height: '100%', background: `linear-gradient(90deg, ${color}99, ${color})`, borderRadius: height, transition: 'width 0.6s ease' }} />
+  <div style={{ background: T.track, borderRadius: height, height, overflow: 'hidden' }}>
+    <div style={{ width: `${Math.min(100, value || 0)}%`, height: '100%', background: `linear-gradient(90deg, ${alpha(color, 60)}, ${color})`, borderRadius: height, transition: 'width 0.6s ease' }} />
   </div>
 );
 
@@ -53,9 +53,9 @@ export const Input = ({ placeholder, value, onChange, icon: Icon, style = {}, ty
 
 export const Btn = ({ children, onClick, color = T.teal, variant = 'solid', size = 'md', disabled, style = {} }) => {
   const base = { display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans', fontSize: size === 'sm' ? 12 : 13, fontWeight: 600, padding: size === 'sm' ? '6px 12px' : '9px 18px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1, border: 'none', transition: 'all 0.2s', ...style };
-  if (variant === 'solid')   return <button onClick={onClick} disabled={disabled} style={{ ...base, background: `linear-gradient(135deg,${color},${color}cc)`, color: '#fff' }}>{children}</button>;
+  if (variant === 'solid')   return <button onClick={onClick} disabled={disabled} style={{ ...base, background: `linear-gradient(135deg,${color},${alpha(color, 80)})`, color: T.onAccent }}>{children}</button>;
   if (variant === 'outline') return <button onClick={onClick} disabled={disabled} style={{ ...base, background: 'transparent', border: `1px solid ${color}`, color }}>{children}</button>;
-  return <button onClick={onClick} disabled={disabled} style={{ ...base, background: `${color}15`, color }}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} style={{ ...base, background: `${alpha(color, 8)}`, color }}>{children}</button>;
 };
 
 /* Inject option styles once (native dropdown background) */
@@ -63,8 +63,8 @@ if (typeof document !== 'undefined' && !document.getElementById('du-select-style
   const s = document.createElement('style');
   s.id = 'du-select-style';
   s.textContent = `
-    select option { background: #13294a; color: #ffffff; font-family: 'DM Sans', sans-serif; font-size: 13px; }
-    select option:disabled { color: rgba(255,255,255,0.38); }
+    select option { background: var(--du-field); color: var(--du-text); font-family: 'DM Sans', sans-serif; font-size: 13px; }
+    select option:disabled { color: var(--du-text-dim); }
     select:focus { border-color: rgba(6,182,212,0.6) !important; box-shadow: 0 0 0 3px rgba(6,182,212,0.12); }
   `;
   document.head.appendChild(s);
@@ -96,7 +96,7 @@ export const Textarea = ({ value, onChange, placeholder, rows = 3, style = {} })
 );
 
 export const Spinner = ({ size = 20, color = T.teal }) => (
-  <div style={{ width: size, height: size, border: `2px solid ${color}33`, borderTop: `2px solid ${color}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+  <div style={{ width: size, height: size, border: `2px solid ${alpha(color, 20)}`, borderTop: `2px solid ${color}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
 );
 
 export const ErrorBanner = ({ error, onDismiss }) => error ? (
@@ -117,10 +117,10 @@ export const EmptyState = ({ icon: Icon, title, subtitle }) => (
 export const Modal = ({ open, onClose, title, children, width = 520 }) => {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(3,8,20,0.82)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}
+    <div style={{ position: 'fixed', inset: 0, background: T.overlay, backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       {/* fond opaque : la page ne doit pas transparaître derrière le formulaire */}
-      <Card style={{ width, maxHeight: '90vh', overflowY: 'auto', padding: 28, background: T.panel, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 24px 60px rgba(0,0,0,0.55)' }}>
+      <Card style={{ width, maxHeight: '90vh', overflowY: 'auto', padding: 28, background: T.panel, border: `1px solid ${T.border}`, boxShadow: `0 24px 60px ${T.shadow}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ fontFamily: 'EB Garamond', fontSize: 22, color: T.text }}>{title}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: T.textMuted, cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
@@ -135,7 +135,7 @@ export const ModalFooter = ({ onCancel, onConfirm, confirmLabel = 'Enregistrer',
   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
     {onCancel && <Btn onClick={onCancel} variant="outline" color={T.textMuted}>Annuler</Btn>}
     <Btn onClick={onConfirm} disabled={loading} color={color}>
-      {loading ? <Spinner size={14} color="#fff" /> : confirmLabel}
+      {loading ? <Spinner size={14} color={T.onAccent} /> : confirmLabel}
     </Btn>
   </div>
 );

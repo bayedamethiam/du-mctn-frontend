@@ -3,7 +3,7 @@ import { AlertCircle, ChevronDown, ChevronUp, Award, Send, Plus, Pencil, Trash2,
 import { instancesApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Btn, Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -34,7 +34,7 @@ const Gauge = ({ value, size=52, color }) => {
   return (
     <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
       <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={6}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={T.track} strokeWidth={6}/>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={6} strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"/>
       </svg>
       <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -50,7 +50,7 @@ const PillarBar = ({ label, value, max, color }) => (
       <span style={{ fontFamily:'DM Sans', fontSize:10, color:T.textDim }}>{label}</span>
       <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color }}>{value}/{max}</span>
     </div>
-    <div style={{ height:4, background:'rgba(255,255,255,0.07)', borderRadius:2, overflow:'hidden' }}>
+    <div style={{ height:4, background:T.track, borderRadius:2, overflow:'hidden' }}>
       <div style={{ width:`${max ? Math.min(100, (value/max)*100) : 0}%`, height:'100%', background:color, borderRadius:2, transition:'width 0.7s ease' }}/>
     </div>
   </div>
@@ -240,7 +240,7 @@ export default function Instances({ embedded = false }) {
     .slice(0, 5);
 
   const daysUntil = d => Math.ceil((new Date(d) - today) / 86400000);
-  const urgencyColor = d => { const n = daysUntil(d); return n <= urg1 ? '#ef4444' : n <= urg2 ? '#f59e0b' : '#10b981'; };
+  const urgencyColor = d => { const n = daysUntil(d); return n <= urg1 ? T.danger : n <= urg2 ? T.warning : T.success; };
 
   const statC  = code => ({ color: ref.color('contribution_status', code, T.textDim), label: ref.label('contribution_status', code) });
   const impC   = code => ({ color: ref.color('contribution_impact', code, T.textDim), label: ref.label('contribution_impact', code) });
@@ -261,13 +261,13 @@ export default function Instances({ embedded = false }) {
       <div style={{ padding:28 }}>
         <ErrorBanner error={error} onDismiss={() => setError('')}/>
         {totalGaps > 0 && (
-          <div style={{ background:'linear-gradient(135deg,#1a0a2e,#0f1a38)', border:'1px solid #8b5cf633', borderRadius:12, padding:'14px 20px', marginBottom:20, display:'flex', gap:14, alignItems:'flex-start' }}>
-            <AlertCircle size={18} color="#f59e0b" style={{ flexShrink:0, marginTop:1 }}/>
+          <div style={{ background:`linear-gradient(135deg,${alpha(T.purple, 16)},${alpha(T.teal, 12)})`, border:`1px solid ${alpha(T.purple, 20)}`, borderRadius:12, padding:'14px 20px', marginBottom:20, display:'flex', gap:14, alignItems:'flex-start' }}>
+            <AlertCircle size={18} color={T.warning} style={{ flexShrink:0, marginTop:1 }}/>
             <div>
-              <div style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:'#f59e0b', letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>{totalGaps} lacunes identifiées · Priorités d'action {planShort}</div>
+              <div style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:T.warning, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>{totalGaps} lacunes identifiées · Priorités d'action {planShort}</div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                 {items.filter(isCritical).map(i=>(
-                  <span key={i.id} style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:600, background:'#ef444420', color:'#ef4444', padding:'3px 10px', borderRadius:20, border:'1px solid #ef444430' }}>{i.acronym} - {(i.gaps||[]).length} lacune{(i.gaps||[]).length>1?'s':''}</span>
+                  <span key={i.id} style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:600, background:alpha(T.danger, 13), color:T.danger, padding:'3px 10px', borderRadius:20, border:`1px solid ${alpha(T.danger, 19)}` }}>{i.acronym} - {(i.gaps||[]).length} lacune{(i.gaps||[]).length>1?'s':''}</span>
                 ))}
               </div>
             </div>
@@ -281,14 +281,14 @@ export default function Instances({ embedded = false }) {
               </Btn>
             ))}
           </div>
-          {canEditInst && <Btn onClick={openCreateInst} color="#8b5cf6"><Plus size={14}/> Nouvelle instance</Btn>}
+          {canEditInst && <Btn onClick={openCreateInst} color={T.purple}><Plus size={14}/> Nouvelle instance</Btn>}
         </div>
         {/* ── Prochaines réunions ── */}
         {!loading && upcomingMeetings.length > 0 && (
           <Card style={{ marginBottom:20 }}>
             <div style={{ padding:'14px 18px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:'#8b5cf6' }}>Prochaines réunions & forums</span>
-              <span style={{ fontSize:10, background:'rgba(139,92,246,0.15)', color:'#8b5cf6', borderRadius:8, padding:'1px 8px', fontFamily:'DM Sans', fontWeight:700 }}>{upcomingMeetings.length}</span>
+              <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.purple }}>Prochaines réunions & forums</span>
+              <span style={{ fontSize:10, background:alpha(T.purple, 13), color:T.purple, borderRadius:8, padding:'1px 8px', fontFamily:'DM Sans', fontWeight:700 }}>{upcomingMeetings.length}</span>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:0 }}>
               {upcomingMeetings.map((m, idx) => {
@@ -297,7 +297,7 @@ export default function Instances({ embedded = false }) {
                 const days = daysUntil(m.date);
                 return (
                   <div key={m.inst.id} style={{ padding:'12px 16px', borderRight: idx < upcomingMeetings.length-1 ? `1px solid ${T.border}` : 'none', display:'flex', gap:10, alignItems:'flex-start' }}>
-                    <div style={{ width:38, height:38, borderRadius:8, background:`${uc}15`, border:`1px solid ${uc}30`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <div style={{ width:38, height:38, borderRadius:8, background:`${alpha(uc, 12)}`, border:`1px solid ${alpha(uc, 19)}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                       <div style={{ fontFamily:'DM Sans', fontSize:13, fontWeight:800, color:uc, lineHeight:1 }}>{m.date?.slice(8,10)}</div>
                       <div style={{ fontFamily:'DM Sans', fontSize:9, color:T.textDim, textTransform:'uppercase' }}>{MONTH_SHORT[parseInt(m.date?.slice(5,7))-1]}</div>
                     </div>
@@ -320,7 +320,7 @@ export default function Instances({ embedded = false }) {
           ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner size={36}/></div>
           : filtered.length === 0
           ? <div style={{ padding:'48px 24px', textAlign:'center', background:T.surface, borderRadius:12, border:`1px solid ${T.border}` }}>
-              <Globe size={36} color="#8b5cf6" style={{ margin:'0 auto 12px', opacity:0.4 }}/>
+              <Globe size={36} color={T.purple} style={{ margin:'0 auto 12px', opacity:0.4 }}/>
               <div style={{ fontFamily:'EB Garamond', fontSize:20, color:T.textMuted, marginBottom:6 }}>Aucune instance</div>
               <div style={{ fontFamily:'DM Sans', fontSize:13, color:T.textDim }}>Ajoutez des instances de représentation internationale.</div>
             </div>
@@ -333,7 +333,7 @@ export default function Instances({ embedded = false }) {
               const lieu  = inst.nextMeeting?.lieu || inst.next_meeting_lieu;
               const meet  = inst.nextMeeting?.label || inst.next_meeting_label;
               return (
-                <div key={inst.id} style={{ background:T.surface, border:`1px solid ${isSel?catC:T.border}`, borderRadius:12, overflow:'hidden', cursor:'pointer', transition:'all 0.2s', boxShadow:isSel?`0 0 0 1px ${catC}44`:'' }}
+                <div key={inst.id} style={{ background:T.surface, border:`1px solid ${isSel?catC:T.border}`, borderRadius:12, overflow:'hidden', cursor:'pointer', transition:'all 0.2s', boxShadow:isSel?`0 0 0 1px ${alpha(catC, 27)}`:'' }}
                   onClick={() => setSelected(isSel?null:inst.id)}>
                   <div style={{ height:3, background:`linear-gradient(90deg,${catC},${nv.color})` }}/>
                   <div style={{ padding:'16px 18px' }}>
@@ -342,8 +342,8 @@ export default function Instances({ embedded = false }) {
                       <div style={{ flex:1 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:4 }}>
                           <span style={{ fontFamily:'DM Sans', fontSize:13, fontWeight:800, color:catC }}>{inst.acronym}</span>
-                          <span style={{ background:`${nv.color}22`, color:nv.color, fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10 }}>{nv.label}</span>
-                          {isCritical(inst)&&<span style={{ background:`${ref.color('priority',inst.priority,'#ef4444')}20`, color:ref.color('priority',inst.priority,'#ef4444'), fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10 }}>{ref.label('priority',inst.priority)}</span>}
+                          <span style={{ background:`${alpha(nv.color, 13)}`, color:nv.color, fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10 }}>{nv.label}</span>
+                          {isCritical(inst)&&<span style={{ background:alpha(ref.color('priority',inst.priority,T.danger), 13), color:ref.color('priority',inst.priority,T.danger), fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10 }}>{ref.label('priority',inst.priority)}</span>}
                         </div>
                         <div style={{ fontFamily:'EB Garamond', fontSize:14, color:T.text, lineHeight:1.3, marginBottom:3 }}>{inst.name}</div>
                         <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>
@@ -353,7 +353,7 @@ export default function Instances({ embedded = false }) {
                       {canEditInst && <button onClick={e => openEditInst(inst, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"
                         onMouseEnter={e=>e.currentTarget.style.color=T.teal} onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}><Pencil size={12}/></button>}
                       {canDeleteInst && <button onClick={e => handleDeleteInst(inst.id, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Supprimer"
-                        onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}><Trash2 size={12}/></button>}
+                        onMouseEnter={e=>e.currentTarget.style.color=T.danger} onMouseLeave={e=>e.currentTarget.style.color=T.textMuted}><Trash2 size={12}/></button>}
                       {isSel?<ChevronUp size={14} color={T.textDim}/>:<ChevronDown size={14} color={T.textDim}/>}
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px 14px', marginBottom:10 }}>
@@ -365,13 +365,13 @@ export default function Instances({ embedded = false }) {
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10, borderTop:`1px solid ${T.border}` }}>
                       <span style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{meet ? `🗓 ${meet}` : ''}{lieu ? ` · 📍 ${lieu}` : ''}</span>
                       <div style={{ display:'flex', gap:6 }}>
-                        {doneContribs(inst)>0&&<span style={{ fontFamily:'DM Sans', fontSize:10, color:'#10b981', background:'#10b98115', padding:'2px 7px', borderRadius:8 }}>{doneContribs(inst)} contrib.</span>}
-                        {(inst.gaps||[]).length>0&&<span style={{ fontFamily:'DM Sans', fontSize:10, color:'#f59e0b', background:'#f59e0b15', padding:'2px 7px', borderRadius:8 }}>{(inst.gaps||[]).length} lacune{(inst.gaps||[]).length>1?'s':''}</span>}
+                        {doneContribs(inst)>0&&<span style={{ fontFamily:'DM Sans', fontSize:10, color:T.success, background:alpha(T.success, 12), padding:'2px 7px', borderRadius:8 }}>{doneContribs(inst)} contrib.</span>}
+                        {(inst.gaps||[]).length>0&&<span style={{ fontFamily:'DM Sans', fontSize:10, color:T.warning, background:alpha(T.warning, 12), padding:'2px 7px', borderRadius:8 }}>{(inst.gaps||[]).length} lacune{(inst.gaps||[]).length>1?'s':''}</span>}
                       </div>
                     </div>
                   </div>
                   {isSel && (
-                    <div style={{ borderTop:`1px solid ${T.border}`, padding:'16px 18px', background:'rgba(255,255,255,0.025)' }} className="slide-in" onClick={e=>e.stopPropagation()}>
+                    <div style={{ borderTop:`1px solid ${T.border}`, padding:'16px 18px', background:T.surface2 }} className="slide-in" onClick={e=>e.stopPropagation()}>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:14 }}>
                         <div>
                           <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>Mandats</div>
@@ -382,7 +382,7 @@ export default function Instances({ embedded = false }) {
                         </div>
                         <div>
                           <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>Lien {planShort}</div>
-                          <div style={{ background:`${catC}15`, borderRadius:8, padding:'8px 10px', border:`1px solid ${catC}25` }}>
+                          <div style={{ background:`${alpha(catC, 12)}`, borderRadius:8, padding:'8px 10px', border:`1px solid ${alpha(catC, 15)}` }}>
                             <span style={{ fontFamily:'DM Sans', fontSize:11, color:catC }}>{inst.ndt_link || '-'}</span>
                           </div>
                           <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:8, lineHeight:1.6 }}>
@@ -408,7 +408,7 @@ export default function Instances({ embedded = false }) {
                                 {c.date}{c.impact && <>{c.date ? ' · ' : ''}Impact : <span style={{ color:ic.color, fontWeight:600 }}>{ic.label}</span></>}
                               </div>
                             </div>
-                            <span style={{ background:`${sc.color}20`, color:sc.color, fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:8 }}>{sc.label}</span>
+                            <span style={{ background:`${alpha(sc.color, 13)}`, color:sc.color, fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:8 }}>{sc.label}</span>
                             {canEditContrib && <button onClick={e => openEditContrib(inst.id, c, e)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'1px 2px', lineHeight:0 }} title="Modifier"
                               onMouseEnter={e=>e.currentTarget.style.color=T.teal} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><Pencil size={11}/></button>}
                             {canDeleteContrib && <button onClick={e => handleDeleteContrib(inst.id, c.id, e)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:16, lineHeight:1 }} title="Supprimer">×</button>}
@@ -417,8 +417,8 @@ export default function Instances({ embedded = false }) {
                       </div>
                       {(inst.gaps||[]).length>0&&(
                         <div>
-                          <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:'#f59e0b', marginBottom:8 }}>Lacunes & recommandations</div>
-                          {(inst.gaps||[]).map((g,i)=><div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'5px 0', borderBottom:i<(inst.gaps||[]).length-1?`1px solid rgba(255,255,255,0.04)`:'none' }}><div style={{ width:5, height:5, borderRadius:'50%', background:'#f59e0b', marginTop:5, flexShrink:0 }}/><span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, lineHeight:1.5 }}>{g}</span></div>)}
+                          <div style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.warning, marginBottom:8 }}>Lacunes & recommandations</div>
+                          {(inst.gaps||[]).map((g,i)=><div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'5px 0', borderBottom:i<(inst.gaps||[]).length-1?`1px solid ${T.border}`:'none' }}><div style={{ width:5, height:5, borderRadius:'50%', background:T.warning, marginTop:5, flexShrink:0 }}/><span style={{ fontFamily:'DM Sans', fontSize:12, color:T.textMuted, lineHeight:1.5 }}>{g}</span></div>)}
                         </div>
                       )}
                     </div>
@@ -517,7 +517,7 @@ export default function Instances({ embedded = false }) {
             </div>
           </div>
         </div>
-        <ModalFooter onCancel={() => setInstModal(false)} onConfirm={handleSaveInst} loading={savingInst} confirmLabel={editingInst ? 'Mettre à jour' : 'Créer l\'instance'} color="#8b5cf6"/>
+        <ModalFooter onCancel={() => setInstModal(false)} onConfirm={handleSaveInst} loading={savingInst} confirmLabel={editingInst ? 'Mettre à jour' : 'Créer l\'instance'} color={T.purple}/>
       </Modal>
 
       {/* Modal contribution */}
@@ -546,7 +546,7 @@ export default function Instances({ embedded = false }) {
             </div>
           </div>
         </div>
-        <ModalFooter onCancel={() => setContribModal(false)} onConfirm={handleSaveContrib} loading={savingContrib} confirmLabel={editingContrib ? 'Mettre à jour' : 'Ajouter'} color="#8b5cf6"/>
+        <ModalFooter onCancel={() => setContribModal(false)} onConfirm={handleSaveContrib} loading={savingContrib} confirmLabel={editingContrib ? 'Mettre à jour' : 'Ajouter'} color={T.purple}/>
       </Modal>
     </div>
   );

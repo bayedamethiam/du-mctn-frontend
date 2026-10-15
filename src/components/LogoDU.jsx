@@ -1,6 +1,8 @@
 import { useRefData } from '../context/RefContext.jsx';
+import { T } from '../theme.js';
 
-export default function LogoDU({ size = 'md' }) {
+/* onDark : logo posé sur un aplat sombre (barre de navigation), quel que soit le thème */
+export default function LogoDU({ size = 'md', onDark = false }) {
   const ref = useRefData();
   const s = size === 'sm'
     ? { bar: 28, star: 9, title: 13, line: 1.5, sub: 7.5, gap: 3 }
@@ -24,7 +26,7 @@ export default function LogoDU({ size = 'md' }) {
         fontFamily: 'DM Sans, sans-serif',
         fontSize: s.title,
         fontWeight: 700,
-        color: '#ffffff',
+        color: onDark ? '#ffffff' : T.text,
         letterSpacing: 1,
         lineHeight: 1,
         textTransform: 'uppercase',
@@ -38,7 +40,7 @@ export default function LogoDU({ size = 'md' }) {
         fontFamily: 'DM Sans, sans-serif',
         fontSize: s.sub,
         fontWeight: 500,
-        color: 'rgba(255,255,255,0.7)',
+        color: onDark ? 'rgba(255,255,255,0.7)' : T.textMuted,
         letterSpacing: 0.8,
         textTransform: 'uppercase',
         textAlign: 'center',

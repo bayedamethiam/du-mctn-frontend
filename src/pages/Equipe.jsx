@@ -5,7 +5,7 @@ import HeroBanner from '../components/HeroBanner.jsx';
 import { Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea, Btn, EmptyState } from '../components/UI.jsx';
 import PasswordChecklist, { usePasswordPolicy } from '../components/PasswordChecklist.jsx';
 import { checkPassword } from '../utils/passwordPolicy.js';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -30,7 +30,7 @@ const AccessChip = ({ member, title }) => {
   const c = accessConf(member);
   return (
     <span title={title || undefined}
-      style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:600, letterSpacing:0.2, color:c.color, background:`${c.color}18`, border:`1px solid ${c.color}33`, borderRadius:20, padding:'1px 7px', whiteSpace:'nowrap' }}>
+      style={{ fontFamily:'DM Sans', fontSize:9, fontWeight:600, letterSpacing:0.2, color:c.color, background:`${alpha(c.color, 12)}`, border:`1px solid ${alpha(c.color, 20)}`, borderRadius:20, padding:'1px 7px', whiteSpace:'nowrap' }}>
       {c.label}
     </span>
   );
@@ -201,9 +201,9 @@ export default function Equipe() {
     const account   = member.account || (users && member.user_id ? users.find(u => String(u.id) === String(member.user_id)) : null);
     return (
       <div onClick={() => setSelected(isSel ? null : member.id)}
-        style={{ background:T.surface, border:`1px solid ${isSel?member.color:T.border}`, borderRadius:featured?14:12, padding:featured?'22px 24px':'16px 18px', cursor:'pointer', transition:'all 0.2s', marginBottom:10, opacity: inactive ? 0.5 : 1, boxShadow:isSel?`0 0 0 1px ${member.color}44, 0 8px 30px ${member.color}22`:'' }}>
+        style={{ background:T.surface, border:`1px solid ${isSel?member.color:T.border}`, borderRadius:featured?14:12, padding:featured?'22px 24px':'16px 18px', cursor:'pointer', transition:'all 0.2s', marginBottom:10, opacity: inactive ? 0.5 : 1, boxShadow:isSel?`0 0 0 1px ${alpha(member.color, 27)}, 0 8px 30px ${alpha(member.color, 13)}`:'' }}>
         <div style={{ display:'flex', alignItems:'flex-start', gap:featured?18:14 }}>
-          <div style={{ flexShrink:0, width:featured?56:44, height:featured?56:44, borderRadius:'50%', background:`linear-gradient(135deg,${member.color}44,${member.color}22)`, border:`2px solid ${member.color}66`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ flexShrink:0, width:featured?56:44, height:featured?56:44, borderRadius:'50%', background:`linear-gradient(135deg,${alpha(member.color, 27)},${alpha(member.color, 13)})`, border:`2px solid ${alpha(member.color, 40)}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
             <span style={{ fontFamily:'DM Sans', fontWeight:700, fontSize:featured?18:14, color:member.color }}>{member.initials}</span>
           </div>
           <div style={{ flex:1 }}>
@@ -217,7 +217,7 @@ export default function Equipe() {
             </div>
             <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
               {expertise.slice(0, featured?4:2).map((e,i) => { const pg = programOf(e); return (
-                <span key={i} title={pg ? `${pg.code} · ${pg.name}` : undefined} style={{ background:`${member.color}15`, color:member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4, cursor: pg ? 'help' : undefined }}>{e}</span>
+                <span key={i} title={pg ? `${pg.code} · ${pg.name}` : undefined} style={{ background:`${alpha(member.color, 12)}`, color:member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4, cursor: pg ? 'help' : undefined }}>{e}</span>
               ); })}
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function Equipe() {
             )}
             {canManage && <button onClick={e => { e.stopPropagation(); openEdit(member); }} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Modifier"><Pencil size={12}/></button>}
             {(inactive ? canManage : canDelete) && (inactive
-              ? <button onClick={e => handleReactivate(member.id, e)} style={{ background:'none', border:'none', color:'#10b981', cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Réactiver"><RotateCcw size={12}/></button>
+              ? <button onClick={e => handleReactivate(member.id, e)} style={{ background:'none', border:'none', color:T.success, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Réactiver"><RotateCcw size={12}/></button>
               : <button onClick={e => askDelete(member, e)} style={{ background:'none', border:'none', color:T.textMuted, cursor:'pointer', padding:'4px 6px', borderRadius:4 }} title="Désactiver"><Trash2 size={12}/></button>)}
             {isSel ? <ChevronUp size={14} color={T.textMuted}/> : <ChevronDown size={14} color={T.textMuted}/>}
           </div>
@@ -238,7 +238,7 @@ export default function Equipe() {
             {expertise.length > 0 && (
               <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:12 }}>
                 {expertise.map((e,i) => { const pg = programOf(e); return (
-                  <span key={i} style={{ background:`${pg?.color || member.color}15`, color:pg?.color || member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4 }}>{pg ? `${pg.code} · ${pg.name}` : e}</span>
+                  <span key={i} style={{ background:`${pg?.color || member.color}1f`, color:pg?.color || member.color, fontFamily:'DM Sans', fontSize:10, padding:'2px 7px', borderRadius:4 }}>{pg ? `${pg.code} · ${pg.name}` : e}</span>
                 ); })}
               </div>
             )}
@@ -259,9 +259,9 @@ export default function Equipe() {
 
   const Divider = ({ label, color }) => (
     <div style={{ display:'flex', alignItems:'center', gap:10, margin:'4px 0 12px' }}>
-      <div style={{ height:1, flex:1, background:`linear-gradient(90deg,${color}44,transparent)` }}/>
+      <div style={{ height:1, flex:1, opacity:0.4, background:`linear-gradient(90deg,${color},transparent)` }}/>
       <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, letterSpacing:2, textTransform:'uppercase', color }}>{label}</span>
-      <div style={{ height:1, flex:1, background:`linear-gradient(90deg,transparent,${color}44)` }}/>
+      <div style={{ height:1, flex:1, opacity:0.4, background:`linear-gradient(90deg,transparent,${color})` }}/>
     </div>
   );
 
@@ -284,7 +284,7 @@ export default function Equipe() {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, gap:12, flexWrap:'wrap' }}>
           <div style={{ display:'flex', background:T.surface2, borderRadius:8, padding:3, border:`1px solid ${T.border}` }}>
             {[['hierarchy','Hiérarchie'],['pole','Pôles'],['grid','Grille']].map(([v,l]) => (
-              <button key={v} onClick={() => setViewMode(v)} style={{ fontFamily:'DM Sans', fontSize:12, fontWeight:500, padding:'7px 16px', borderRadius:6, border:'none', background:viewMode===v?T.teal:'transparent', color:viewMode===v?'#fff':T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>{l}</button>
+              <button key={v} onClick={() => setViewMode(v)} style={{ fontFamily:'DM Sans', fontSize:12, fontWeight:500, padding:'7px 16px', borderRadius:6, border:'none', background:viewMode===v?T.teal:'transparent', color:viewMode===v?T.onAccent:T.textMuted, cursor:'pointer', transition:'all 0.2s' }}>{l}</button>
             ))}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:14 }}>
@@ -318,7 +318,7 @@ export default function Equipe() {
                   {/* Connecteur */}
                   {polesUsed.length > 0 && (
                     <div style={{ display:'flex', justifyContent:'center' }}>
-                      <div style={{ width:1, height:24, background:`linear-gradient(180deg,${T.teal}66,transparent)` }}/>
+                      <div style={{ width:1, height:24, background:'linear-gradient(180deg,rgba(6,182,212,0.40),transparent)' }}/>
                     </div>
                   )}
                   {/* Pôles */}
@@ -333,7 +333,7 @@ export default function Equipe() {
                           if (poleMembers.length === 0) return null;
                           const secondLevel = Math.min(...poleMembers.map(m => m.level));
                           return (
-                            <div key={pole} style={{ background:T.surface, border:`1px solid ${pColor}33`, borderRadius:12, padding:'16px 16px 12px', borderTop:`3px solid ${pColor}` }}>
+                            <div key={pole} style={{ background:T.surface, border:`1px solid ${alpha(pColor, 20)}`, borderRadius:12, padding:'16px 16px 12px', borderTop:`3px solid ${pColor}` }}>
                               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                                 <div style={{ width:8, height:8, borderRadius:'50%', background:pColor }}/>
                                 <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:pColor }}>{ref.label('team_pole', pole)}</span>
@@ -388,7 +388,7 @@ export default function Equipe() {
             </div>
           </div>
           {editing?.account && (
-            <div style={{ background:`${T.teal}12`, border:`1px solid ${T.teal}33`, borderRadius:8, padding:'9px 12px', fontFamily:'DM Sans', fontSize:11, color:T.textMuted, display:'flex', alignItems:'center', gap:7 }}>
+            <div style={{ background:'rgba(6,182,212,0.12)', border:'1px solid rgba(6,182,212,0.33)', borderRadius:8, padding:'9px 12px', fontFamily:'DM Sans', fontSize:11, color:T.textMuted, display:'flex', alignItems:'center', gap:7 }}>
               <UserCheck size={13} color={T.teal}/>
               Ces informations viennent du compte utilisateur (nom, email, téléphone). Modifiez-les dans Administration › Utilisateurs.
             </div>
@@ -422,7 +422,7 @@ export default function Equipe() {
               <label style={lbl}>Couleur</label>
               <div style={{ display:'flex', gap:7, flexWrap:'wrap', paddingTop:4 }}>
                 {COLORS.map(c => (
-                  <button key={c} onClick={() => f('color')(c)} style={{ width:26, height:26, borderRadius:'50%', background:c, border:form.color===c?'3px solid white':'2px solid transparent', cursor:'pointer', transition:'all 0.15s', outline:'none' }}/>
+                  <button key={c} onClick={() => f('color')(c)} style={{ width:26, height:26, borderRadius:'50%', background:c, border:form.color===c?`3px solid ${T.text}`:'2px solid transparent', cursor:'pointer', transition:'all 0.15s', outline:'none' }}/>
                 ))}
               </div>
             </div>
@@ -455,7 +455,7 @@ export default function Equipe() {
             <Textarea value={form.bio} onChange={f('bio')} placeholder="Responsabilités et expériences du membre..." rows={3}/>
           </div>
         </div>
-        {formError && <div style={{ marginTop:14, padding:'9px 12px', borderRadius:8, background:'#ef444418', border:'1px solid #ef444440', color:'#ef4444', fontFamily:'DM Sans', fontSize:12 }}>{formError}</div>}
+        {formError && <div style={{ marginTop:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.25)', color:T.danger, fontFamily:'DM Sans', fontSize:12 }}>{formError}</div>}
         <ModalFooter onCancel={() => setModal(false)} onConfirm={handleSave} loading={saving} confirmLabel={editing ? 'Mettre à jour' : 'Ajouter'}/>
       </Modal>
 
@@ -479,7 +479,7 @@ export default function Equipe() {
             )}
           </div>
           {mailEnabled ? (
-            <div style={{ background:`${T.teal}12`, border:`1px solid ${T.teal}33`, borderRadius:8, padding:'10px 13px', fontFamily:'DM Sans', fontSize:11.5, color:T.textMuted, lineHeight:1.6 }}>
+            <div style={{ background:'rgba(6,182,212,0.12)', border:'1px solid rgba(6,182,212,0.33)', borderRadius:8, padding:'10px 13px', fontFamily:'DM Sans', fontSize:11.5, color:T.textMuted, lineHeight:1.6 }}>
               Une invitation sera envoyée à cette adresse : la personne choisit elle-même son mot de passe.
               Aucun mot de passe n'est transmis par email. Le compte reprend le pôle et le téléphone de la fiche.
             </div>

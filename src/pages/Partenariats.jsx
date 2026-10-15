@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Building, Mail, Calendar, Upload, File, X, Pape
 import { partnershipsApi, programsApi, instancesApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Btn, Spinner, ErrorBanner, Modal, Input, Select, Textarea, EmptyState } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -230,13 +230,13 @@ export default function Partenariats() {
                   return (
                     <Card key={p.id}>
                       <div style={{ padding:'18px 22px', display:'flex', alignItems:'center', gap:16, cursor:'pointer' }} onClick={() => setExpanded(isExp ? null : p.id)}>
-                        <div style={{ width:44, height:44, borderRadius:10, background:`${tc.color}22`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <div style={{ width:44, height:44, borderRadius:10, background:`${alpha(tc.color, 13)}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                           <Building size={20} color={tc.color}/>
                         </div>
                         <div style={{ flex:1 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
                             <h4 style={{ fontFamily:'EB Garamond', fontSize:18, color:T.text }}>{p.name}</h4>
-                            <span style={{ background:`${tc.color}22`, color:tc.color, fontSize:10, fontWeight:700, letterSpacing:1, textTransform:'uppercase', padding:'2px 8px', borderRadius:4 }}>{tc.label}</span>
+                            <span style={{ background:`${alpha(tc.color, 13)}`, color:tc.color, fontSize:10, fontWeight:700, letterSpacing:1, textTransform:'uppercase', padding:'2px 8px', borderRadius:4 }}>{tc.label}</span>
                             <Badge status={p.status} domain="partnership_status"/>
                           </div>
                           <div style={{ display:'flex', gap:16, marginTop:4, flexWrap:'wrap', alignItems:'center' }}>
@@ -248,7 +248,7 @@ export default function Partenariats() {
                                 {links.map(id => {
                                   const l = resolveLink(id);
                                   return l ? (
-                                    <span key={id} title={l.title} style={{ fontSize:10, background:`${l.color}18`, color:l.color, fontFamily:'DM Sans', fontWeight: l.kind === 'program' ? 800 : 600, padding:'1px 7px', borderRadius:4, border: l.kind === 'program' ? `1px solid ${l.color}40` : 'none' }}>
+                                    <span key={id} title={l.title} style={{ fontSize:10, background:`${alpha(l.color, 12)}`, color:l.color, fontFamily:'DM Sans', fontWeight: l.kind === 'program' ? 800 : 600, padding:'1px 7px', borderRadius:4, border: l.kind === 'program' ? `1px solid ${alpha(l.color, 25)}` : 'none' }}>
                                       {l.short}
                                     </span>
                                   ) : null;
@@ -259,7 +259,7 @@ export default function Partenariats() {
                         </div>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           {(p.documents||[]).length > 0 && (
-                            <div style={{ display:'flex', alignItems:'center', gap:4, background:`${T.teal}15`, borderRadius:6, padding:'4px 10px' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:4, background:alpha(T.teal, 12), borderRadius:6, padding:'4px 10px' }}>
                               <Paperclip size={12} color={T.teal}/>
                               <span style={{ fontFamily:'DM Sans', fontSize:11, color:T.teal, fontWeight:600 }}>{p.documents.length}</span>
                             </div>
@@ -267,7 +267,7 @@ export default function Partenariats() {
                           {canWrite && <button onClick={e => openEdit(p, e)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:4 }}
                             onMouseEnter={e=>e.currentTarget.style.color=T.teal} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><Pencil size={13}/></button>}
                           {canDelete && <button onClick={e => handleDelete(p.id, e)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:4 }}
-                            onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><Trash2 size={13}/></button>}
+                            onMouseEnter={e=>e.currentTarget.style.color=T.danger} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><Trash2 size={13}/></button>}
                           {isExp ? <ChevronUp size={16} color={T.textMuted}/> : <ChevronDown size={16} color={T.textMuted}/>}
                         </div>
                       </div>
@@ -292,7 +292,7 @@ export default function Partenariats() {
                               <p style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:T.textDim, marginBottom:8 }}>{`Programmes & projets ${planShort}`}</p>
                               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                                 {links.map(id => { const l = resolveLink(id) || { label:id, color:T.textDim }; return (
-                                  <span key={id} style={{ fontSize:11, background:`${l.color}18`, color:l.color, fontFamily:'DM Sans', fontWeight:600, padding:'3px 9px', borderRadius:6 }}>{l.label}</span>
+                                  <span key={id} style={{ fontSize:11, background:`${alpha(l.color, 12)}`, color:l.color, fontFamily:'DM Sans', fontWeight:600, padding:'3px 9px', borderRadius:6 }}>{l.label}</span>
                                 ); })}
                               </div>
                             </div>
@@ -314,13 +314,13 @@ export default function Partenariats() {
                                   const ft = FT[doc.file_type] || FT.default;
                                   return (
                                     <div key={doc.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:T.surface2, borderRadius:8, border:`1px solid ${T.border}` }}>
-                                      <div style={{ width:32, height:32, borderRadius:6, background:`${ft.color}22`, display:'flex', alignItems:'center', justifyContent:'center' }}><File size={14} color={ft.color}/></div>
+                                      <div style={{ width:32, height:32, borderRadius:6, background:`${alpha(ft.color, 13)}`, display:'flex', alignItems:'center', justifyContent:'center' }}><File size={14} color={ft.color}/></div>
                                       <div style={{ flex:1 }}>
                                         <button onClick={() => downloadDoc(p.id, doc)} style={{ background:'none', border:'none', fontFamily:'DM Sans', fontSize:13, color:T.teal, cursor:'pointer', padding:0, textAlign:'left' }}>{doc.name}</button>
                                         <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>{[ft.label, doc.size, fmtDocDate(doc.date)].filter(Boolean).join(' · ')}</div>
                                       </div>
                                       {canDelDoc && <button onClick={() => removeDoc(p.id, doc.id)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer' }}
-                                        onMouseEnter={e=>e.currentTarget.style.color='#ef4444'} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><X size={14}/></button>}
+                                        onMouseEnter={e=>e.currentTarget.style.color=T.danger} onMouseLeave={e=>e.currentTarget.style.color=T.textDim}><X size={14}/></button>}
                                     </div>
                                   );
                                 })}
@@ -390,7 +390,7 @@ export default function Partenariats() {
                     return (
                       <div key={g.code || '-'}>
                         {g.code
-                          ? <label style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px 3px', cursor:'pointer', background: progChecked ? `${g.color}10` : 'transparent' }} title="Associer le programme entier">
+                          ? <label style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px 3px', cursor:'pointer', background: progChecked ? `${alpha(g.color, 12)}` : 'transparent' }} title="Associer le programme entier">
                               <input type="checkbox" checked={!!progChecked}
                                 onChange={() => { const cur = form.projects.find(x => x.toLowerCase() === String(g.code).toLowerCase()); toggleLink(cur || g.code); }}
                                 style={{ accentColor:g.color, width:13, height:13, cursor:'pointer', flexShrink:0 }}/>
@@ -400,7 +400,7 @@ export default function Partenariats() {
                         {g.projs.map(p => {
                           const checked = form.projects.includes(String(p.id));
                           return (
-                            <label key={p.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 12px 4px 32px', cursor:'pointer', background: checked ? `${g.color}10` : 'transparent' }}>
+                            <label key={p.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 12px 4px 32px', cursor:'pointer', background: checked ? `${alpha(g.color, 12)}` : 'transparent' }}>
                               <input type="checkbox" checked={checked} onChange={() => toggleLink(p.id)}
                                 style={{ accentColor: g.color, width:13, height:13, cursor:'pointer', flexShrink:0 }} />
                               <span style={{ fontFamily:'DM Sans', fontSize:12, color: checked ? T.text : T.textMuted }}>{p.name}</span>
@@ -426,7 +426,7 @@ export default function Partenariats() {
           </Field>
           <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:8 }}>
             <Btn onClick={() => setModal(false)} variant="ghost" color={T.textMuted}>Annuler</Btn>
-            <Btn onClick={handleSave} disabled={saving}>{saving ? <Spinner size={14} color="#fff"/> : null}{editing ? 'Mettre à jour' : 'Créer'}</Btn>
+            <Btn onClick={handleSave} disabled={saving}>{saving ? <Spinner size={14} color={T.onAccent}/> : null}{editing ? 'Mettre à jour' : 'Créer'}</Btn>
           </div>
         </div>
       </Modal>

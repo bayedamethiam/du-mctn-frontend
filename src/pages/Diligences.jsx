@@ -3,7 +3,7 @@ import { Plus, Search, Trash2, Edit2 } from 'lucide-react';
 import { diligencesApi, teamApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Input, Btn, Select, Spinner, ErrorBanner, Modal, ModalFooter, EmptyState, Textarea } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -125,7 +125,7 @@ export default function Diligences() {
           <Input placeholder="Rechercher…" value={search} onChange={setSearch} icon={Search} style={{ flex: 1, minWidth: 220 }} />
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {[['all', 'Toutes'], ...statuses.map(s => [s.code, s.label]), ['late', 'En retard']].map(([v, l]) => (
-              <Btn key={v} onClick={() => setFilterSt(v)} variant={filterSt === v ? 'ghost' : 'outline'} color={filterSt === v ? (v === 'late' ? '#ef4444' : T.teal) : T.textDim} size="sm">{l}{v === 'late' && late > 0 ? ` (${late})` : ''}</Btn>
+              <Btn key={v} onClick={() => setFilterSt(v)} variant={filterSt === v ? 'ghost' : 'outline'} color={filterSt === v ? (v === 'late' ? T.danger : T.teal) : T.textDim} size="sm">{l}{v === 'late' && late > 0 ? ` (${late})` : ''}</Btn>
             ))}
           </div>
           {canEdit && <Btn onClick={openCreate} color={T.teal}><Plus size={14} /> Nouvelle diligence</Btn>}
@@ -160,8 +160,8 @@ export default function Diligences() {
                         <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
                           {d.deadline ? (
                             <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3 }}>
-                              <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: isLate(d) ? '#ef4444' : T.textMuted, fontWeight: isLate(d) ? 700 : 400 }}>{d.deadline}</span>
-                              {isLate(d) && <span style={{ fontSize: 10, fontFamily: 'DM Sans', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 6px', letterSpacing: 0.5 }}>⚠ En retard</span>}
+                              <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: isLate(d) ? T.danger : T.textMuted, fontWeight: isLate(d) ? 700 : 400 }}>{d.deadline}</span>
+                              {isLate(d) && <span style={{ fontSize: 10, fontFamily: 'DM Sans', fontWeight: 700, color: T.danger, background: alpha(T.danger, 12), borderRadius: 4, padding: '1px 6px', letterSpacing: 0.5 }}>⚠ En retard</span>}
                             </div>
                           ) : <span style={{ color: T.textDim, fontSize: 12, fontFamily: 'DM Sans' }}>-</span>}
                         </td>
@@ -173,12 +173,12 @@ export default function Diligences() {
                             {canEdit && <Btn onClick={() => openEdit(d)} variant="ghost" color={T.teal} size="sm"><Edit2 size={12} /></Btn>}
                             {canEdit && next && (
                               <span title={`Passer à : ${next.label}`}>
-                                <Btn onClick={() => cycleStatus(d)} variant="ghost" color={next.color || '#10b981'} size="sm">
+                                <Btn onClick={() => cycleStatus(d)} variant="ghost" color={next.color || T.success} size="sm">
                                   {ref.has('diligence_status', next.code, 'done') ? '✓' : '↩'}
                                 </Btn>
                               </span>
                             )}
-                            {canDelete && <Btn onClick={() => remove(d.id)} variant="ghost" color="#ef4444" size="sm"><Trash2 size={12} /></Btn>}
+                            {canDelete && <Btn onClick={() => remove(d.id)} variant="ghost" color={T.danger} size="sm"><Trash2 size={12} /></Btn>}
                           </div>
                         </td>
                       </tr>

@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, List, Plus, X, Pencil } from '
 import { projectMeetingsApi, diligencesApi, audiencesApi, instancesApi, intlEventsApi, partnershipsApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Spinner, ErrorBanner } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -162,7 +162,7 @@ export default function Calendrier() {
   };
 
   const EventChip = ({ ev, compact = false }) => (
-    <div style={{ display:'flex', alignItems:'center', gap: compact ? 3 : 5, padding: compact ? '1px 5px' : '4px 8px', borderRadius: compact ? 3 : 6, background:`${ev.color}18`, borderLeft:`2px solid ${ev.color}`, overflow:'hidden', cursor:'default' }}>
+    <div style={{ display:'flex', alignItems:'center', gap: compact ? 3 : 5, padding: compact ? '1px 5px' : '4px 8px', borderRadius: compact ? 3 : 6, background:`${alpha(ev.color, 12)}`, borderLeft:`2px solid ${ev.color}`, overflow:'hidden', cursor:'default' }}>
       <div style={{ width:5, height:5, borderRadius:'50%', background:ev.color, flexShrink:0 }} />
       <div style={{ overflow:'hidden', flex:1 }}>
         <div style={{ fontFamily:'DM Sans', fontSize: compact ? 10 : 12, fontWeight:600, color:T.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
@@ -206,7 +206,7 @@ export default function Calendrier() {
 
                 {/* Bouton Nouvel événement */}
                 {canWrite && <button onClick={() => openCreate(selectedDay || todayStr)}
-                  style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background:'#6366f1', color:'#fff', fontFamily:'DM Sans', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background:'#6366f1', color:T.onAccent, fontFamily:'DM Sans', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                   <Plus size={13}/> Nouvel événement
                 </button>}
 
@@ -224,7 +224,7 @@ export default function Calendrier() {
                 <div style={{ display:'flex', background:T.surface, border:`1px solid ${T.border}`, borderRadius:8, padding:3 }}>
                   {[['month', <CalendarDays size={13}/>, 'Mois'], ['list', <List size={13}/>, 'Liste']].map(([v, icon, lbl]) => (
                     <button key={v} onClick={() => setMode(v)}
-                      style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:5, border:'none', background:mode===v?T.teal:'transparent', color:mode===v?'#fff':T.textMuted, fontFamily:'DM Sans', fontSize:12, fontWeight:500, cursor:'pointer', transition:'all .15s' }}>
+                      style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:5, border:'none', background:mode===v?T.teal:'transparent', color:mode===v?T.onAccent:T.textMuted, fontFamily:'DM Sans', fontSize:12, fontWeight:500, cursor:'pointer', transition:'all .15s' }}>
                       {icon} {lbl}
                     </button>
                   ))}
@@ -248,11 +248,11 @@ export default function Calendrier() {
                         const dayEvs  = ds ? (evByDate[ds] || []) : [];
                         return (
                           <div key={idx} onClick={() => ds && inMonth && setSelectedDay(isSel ? null : ds)}
-                            style={{ minHeight:90, padding:'6px 6px 4px', borderRight:`1px solid ${T.border}`, borderBottom:`1px solid ${T.border}`, background: isSel ? 'rgba(6,182,212,0.07)' : isToday ? 'rgba(255,255,255,0.03)' : 'transparent', cursor: inMonth ? 'pointer' : 'default', transition:'background .1s', boxSizing:'border-box' }}
-                            onMouseEnter={e => { if (inMonth && !isSel) e.currentTarget.style.background='rgba(255,255,255,0.025)'; }}
+                            style={{ minHeight:90, padding:'6px 6px 4px', borderRight:`1px solid ${T.border}`, borderBottom:`1px solid ${T.border}`, background: isSel ? 'rgba(6,182,212,0.12)' : isToday ? T.surface2 : 'transparent', cursor: inMonth ? 'pointer' : 'default', transition:'background .1s', boxSizing:'border-box' }}
+                            onMouseEnter={e => { if (inMonth && !isSel) e.currentTarget.style.background=T.surface2; }}
                             onMouseLeave={e => { if (inMonth && !isSel) e.currentTarget.style.background='transparent'; }}>
                             <div style={{ width:24, height:24, borderRadius:'50%', background: isToday ? T.teal : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:4 }}>
-                              <span style={{ fontFamily:'DM Sans', fontSize:12, fontWeight: isToday ? 700 : 400, color: isToday ? '#fff' : inMonth ? T.text : T.textDim }}>{inMonth ? dayNum : ''}</span>
+                              <span style={{ fontFamily:'DM Sans', fontSize:12, fontWeight: isToday ? 700 : 400, color: isToday ? T.onAccent : inMonth ? T.text : T.textDim }}>{inMonth ? dayNum : ''}</span>
                             </div>
                             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
                               {dayEvs.slice(0, 3).map(ev => <EventChip key={ev.id} ev={ev} compact />)}
@@ -266,7 +266,7 @@ export default function Calendrier() {
 
                   {/* ── Panneau détail jour ── */}
                   {selectedDay && (
-                    <div style={{ background:T.surface, border:`1px solid ${T.teal}30`, borderRadius:12, padding:16, height:'fit-content', maxHeight:620, overflowY:'auto' }} className="slide-in">
+                    <div style={{ background:T.surface, border:'1px solid rgba(6,182,212,0.30)', borderRadius:12, padding:16, height:'fit-content', maxHeight:620, overflowY:'auto' }} className="slide-in">
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
                         <div style={{ fontFamily:'EB Garamond', fontSize:16, color:T.teal }}>
                           {new Date(selectedDay + 'T12:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}
@@ -280,7 +280,7 @@ export default function Calendrier() {
                         ? <div style={{ fontFamily:'DM Sans', fontSize:12, color:T.textDim, fontStyle:'italic', padding:'12px 0' }}>Aucun événement ce jour</div>
                         : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                             {selectedEvents.map(ev => (
-                              <div key={ev.id} style={{ padding:'10px 12px', borderRadius:8, background:`${ev.color}10`, border:`1px solid ${ev.color}25` }}>
+                              <div key={ev.id} style={{ padding:'10px 12px', borderRadius:8, background:`${alpha(ev.color, 12)}`, border:`1px solid ${alpha(ev.color, 15)}` }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
                                   <div style={{ width:8, height:8, borderRadius:'50%', background:ev.color, flexShrink:0 }} />
                                   <span style={{ fontFamily:'DM Sans', fontSize:10, fontWeight:700, color:ev.color, textTransform:'uppercase', letterSpacing:0.8 }}>{TYPES[ev.type]?.label}</span>
@@ -293,7 +293,7 @@ export default function Calendrier() {
                                   )}
                                   {ev.type === 'evenement' && ev._id && canDelete && (
                                     <button onClick={() => deleteEvt(ev._id)} title="Supprimer" style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', padding:'0 2px', lineHeight:0, marginLeft:4 }}
-                                      onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color=T.textDim}>
+                                      onMouseEnter={e => e.currentTarget.style.color=T.danger} onMouseLeave={e => e.currentTarget.style.color=T.textDim}>
                                       <X size={11}/>
                                     </button>
                                   )}
@@ -324,7 +324,7 @@ export default function Calendrier() {
                               <div style={{ width:52, flexShrink:0, paddingTop:6, textAlign:'center' }}>
                                 <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, textTransform:'uppercase' }}>{DAYS[(d.getDay()+6)%7]}</div>
                                 <div style={{ width:34, height:34, borderRadius:'50%', background:isT?T.teal:'transparent', border:`1px solid ${isT?T.teal:T.border}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'3px auto 0' }}>
-                                  <span style={{ fontFamily:'DM Sans', fontSize:14, fontWeight:700, color:isT?'#fff':T.text }}>{d.getDate()}</span>
+                                  <span style={{ fontFamily:'DM Sans', fontSize:14, fontWeight:700, color:isT?T.onAccent:T.text }}>{d.getDate()}</span>
                                 </div>
                               </div>
                               <div style={{ flex:1, display:'flex', flexDirection:'column', gap:6, paddingTop:4 }}>
@@ -343,8 +343,8 @@ export default function Calendrier() {
 
       {/* ── Modal Nouvel événement ── */}
       {showModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(3,8,20,0.82)', backdropFilter:'blur(3px)', WebkitBackdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div style={{ background:T.panel, border:'1px solid rgba(255,255,255,0.12)', borderRadius:14, padding:28, width:520, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 60px rgba(0,0,0,0.55)' }} className="slide-in">
+        <div style={{ position:'fixed', inset:0, background:T.overlay, backdropFilter:'blur(3px)', WebkitBackdropFilter:'blur(3px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+          <div style={{ background:T.panel, border:`1px solid ${T.border}`, borderRadius:14, padding:28, width:520, maxHeight:'90vh', overflowY:'auto', boxShadow:`0 24px 60px ${T.shadow}` }} className="slide-in">
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <h2 style={{ fontFamily:'EB Garamond', fontSize:22, color:T.text }}>{editEvt ? 'Modifier l\'événement' : 'Nouvel événement'}</h2>
               <button onClick={() => setShowModal(false)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', lineHeight:0 }}><X size={18}/></button>
@@ -370,7 +370,7 @@ export default function Calendrier() {
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:20 }}>
               <button onClick={() => setShowModal(false)} style={{ padding:'9px 18px', borderRadius:8, border:`1px solid ${T.border}`, background:'transparent', color:T.textMuted, fontFamily:'DM Sans', fontSize:13, cursor:'pointer' }}>Annuler</button>
               <button onClick={saveEvt} disabled={saving}
-                style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'#6366f1', color:'#fff', fontFamily:'DM Sans', fontSize:13, fontWeight:700, cursor:'pointer', opacity: saving ? 0.6 : 1 }}>
+                style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'#6366f1', color:T.onAccent, fontFamily:'DM Sans', fontSize:13, fontWeight:700, cursor:'pointer', opacity: saving ? 0.6 : 1 }}>
                 {saving ? '...' : editEvt ? 'Enregistrer' : 'Créer'}
               </button>
             </div>

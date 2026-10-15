@@ -4,7 +4,7 @@ import { dashboardApi, programsApi, projectMeetingsApi, diligencesApi, audiences
 import { useRefData } from '../context/RefContext.jsx';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, ProgressBar, Spinner, ErrorBanner } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 
 const EVT_TYPES = {
   meeting:     { color: '#06b6d4', label: 'RDV Projet'   },
@@ -139,7 +139,7 @@ export default function Dashboard() {
                   <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: T.text, marginTop: 6 }}>{k.label}</div>
                   <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 2 }}>{k.sub}</div>
                 </div>
-                <div style={{ background: `${k.color}20`, borderRadius: 10, padding: 10 }}><k.icon size={18} color={k.color} /></div>
+                <div style={{ background: `${alpha(k.color, 13)}`, borderRadius: 10, padding: 10 }}><k.icon size={18} color={k.color} /></div>
               </div>
             </Card>
           ))}
@@ -222,7 +222,7 @@ export default function Dashboard() {
                         {evt.subtitle && <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{evt.subtitle}</div>}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                           <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>{fmtDate(evt.date)}{evt.time ? ` · ${evt.time}` : ''}</span>
-                          <span style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 600, color: meta.color, background: `${meta.color}18`, padding: '1px 5px', borderRadius: 4 }}>{meta.label}</span>
+                          <span style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 600, color: meta.color, background: `${alpha(meta.color, 13)}`, padding: '1px 5px', borderRadius: 4 }}>{meta.label}</span>
                         </div>
                       </div>
                       <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, color: days === 0 ? '#10b981' : days <= alertDays ? '#ef4444' : T.textDim, flexShrink: 0, marginTop: 2 }}>

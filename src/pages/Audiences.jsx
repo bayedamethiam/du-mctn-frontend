@@ -3,7 +3,7 @@ import { Plus, ChevronDown, ChevronUp, ArrowRight, Calendar, Edit2, Trash2, Chec
 import { audiencesApi, teamApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Card, Badge, Btn, Select, Textarea, Spinner, ErrorBanner, Modal, ModalFooter } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 import { useRefData } from '../context/RefContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
@@ -53,7 +53,7 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
   /* Cycle de statut : ordre du référentiel (statuts actifs) */
   const stCodes  = ref.list('action_status').map(s => String(s.code));
   const firstOpen = stCodes.find(c => !isDone(c)) ?? stCodes[0] ?? null;
-  const stOf     = code => ({ label: ref.label('action_status', code), color: ref.color('action_status', code, '#94a3b8') });
+  const stOf     = code => ({ label: ref.label('action_status', code), color: ref.color('action_status', code, T.textMuted) });
 
   const isLate = ac => ac.deadline && ac.deadline < today && !isDone(ac.status);
   const respFields = id => {
@@ -99,7 +99,7 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
 
   return (
     <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
-      <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#8b5cf6', marginBottom: 10 }}>
+      <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: T.purple, marginBottom: 10 }}>
         Actions post-audience · {done}/{actions.length} réalisées
       </div>
 
@@ -120,7 +120,7 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <ResponsibleSelect value={editAc.responsible_id} onChange={v => setEditAc(p => ({ ...p, responsible_id: v }))} teamMembers={teamMembers} style={{ flex: 1 }} />
               <input type="date" value={editAc.deadline} onChange={e => setEditAc(p => ({ ...p, deadline: e.target.value }))} style={{ ...inpStyle, width: 150 }} />
-              <button onClick={saveEdit} title="Enregistrer" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 4, lineHeight: 0 }}><Check size={14} /></button>
+              <button onClick={saveEdit} title="Enregistrer" style={{ background: 'none', border: 'none', color: T.success, cursor: 'pointer', padding: 4, lineHeight: 0 }}><Check size={14} /></button>
               <button onClick={() => setEditAc(null)} title="Annuler" style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: 4, lineHeight: 0 }}><X size={14} /></button>
             </div>
             {editAc.legacy && !memberOf(teamMembers, ac) && String(editAc.responsible_id) === editAc.initialSel && <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>Responsable actuel (hors liste active) : {editAc.legacy}</span>}
@@ -130,7 +130,7 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
           <div key={ac.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
             <button onClick={() => canEdit && cycleAc(ac.id)} title="Changer le statut"
               style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${st.color}`, background: isDone(ac.status) ? st.color : 'transparent', flexShrink: 0, cursor: canEdit ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-              {isDone(ac.status) && <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
+              {isDone(ac.status) && <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke={T.onAccent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
               {!isDone(ac.status) && ac.status !== firstOpen && <div style={{ width: 8, height: 8, borderRadius: '50%', background: st.color }} />}
             </button>
 
@@ -143,9 +143,9 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
                   <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>👤 {respName}</span>
                 )}
                 {ac.deadline && (
-                  <span style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: late ? 700 : 400, color: late ? '#ef4444' : T.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: late ? 700 : 400, color: late ? T.danger : T.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
                     📅 {ac.deadline}
-                    {late && <span style={{ background: '#ef444422', color: '#ef4444', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700 }}>⚠ En retard</span>}
+                    {late && <span style={{ background: alpha(T.danger, 13), color: T.danger, borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700 }}>⚠ En retard</span>}
                   </span>
                 )}
               </div>
@@ -161,7 +161,7 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
               </button>
               <button onClick={() => deleteAc(ac.id)} title="Supprimer"
                 style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: '2px 4px', lineHeight: 0, borderRadius: 4, marginTop: 2 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                onMouseEnter={e => e.currentTarget.style.color = T.danger}
                 onMouseLeave={e => e.currentTarget.style.color = T.textDim}>
                 <Trash2 size={11} />
               </button>
@@ -179,7 +179,7 @@ function AudienceActions({ audience, onSave, teamMembers, canEdit }) {
               onKeyDown={e => e.key === 'Enter' && add()}
               style={{ ...inpStyle, flex: 1 }} />
             <button onClick={add}
-              style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans', cursor: 'pointer', flexShrink: 0 }}>
+              style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: T.purple, color: T.onAccent, fontSize: 13, fontWeight: 700, fontFamily: 'DM Sans', cursor: 'pointer', flexShrink: 0 }}>
               + Ajouter
             </button>
           </div>
@@ -327,10 +327,10 @@ export default function Audiences() {
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
             {filters.map(([v,l]) => (
-              <Btn key={v} onClick={() => setFilter(v)} variant={filter === v ? 'ghost' : 'outline'} color={filter === v ? '#8b5cf6' : T.textDim} size="sm">{l}</Btn>
+              <Btn key={v} onClick={() => setFilter(v)} variant={filter === v ? 'ghost' : 'outline'} color={filter === v ? T.purple : T.textDim} size="sm">{l}</Btn>
             ))}
           </div>
-          {canWrite && <Btn onClick={openCreate} color="#8b5cf6"><Plus size={14} /> Nouvelle audience</Btn>}
+          {canWrite && <Btn onClick={openCreate} color={T.purple}><Plus size={14} /> Nouvelle audience</Btn>}
         </div>
         {loading
           ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size={36} /></div>
@@ -353,15 +353,15 @@ export default function Audiences() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                         <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>{a.date}{a.time ? ` · ${a.time}` : ''}</span>
-                        {a.suite_a_donner && isHeld(a.status) && <span style={{ fontFamily: 'DM Sans', fontSize: 9, fontWeight: 700, color: '#8b5cf6' }}>● SUITE</span>}
+                        {a.suite_a_donner && isHeld(a.status) && <span style={{ fontFamily: 'DM Sans', fontSize: 9, fontWeight: 700, color: T.purple }}>● SUITE</span>}
                       </div>
                       {isExp ? <ChevronUp size={16} color={T.textMuted} /> : <ChevronDown size={16} color={T.textMuted} />}
                     </div>
                     {isExp && (
                       <div style={{ borderTop: `1px solid ${T.border}`, padding: '16px 20px' }} className="slide-in">
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
-                          <div style={{ background: '#8b5cf622', borderRadius: 10, padding: '14px 16px', border: '1px solid #8b5cf633' }}>
-                            <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#8b5cf6', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ background: alpha(T.purple, 13), borderRadius: 10, padding: '14px 16px', border: `1px solid ${alpha(T.purple, 20)}` }}>
+                            <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: T.purple, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <ArrowRight size={12} /> Suite à donner
                             </div>
                             <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: T.text, lineHeight: 1.6 }}>{a.suite_a_donner || <span style={{ color: T.textDim, fontStyle: 'italic' }}>Aucune suite définie</span>}</p>
@@ -373,7 +373,7 @@ export default function Audiences() {
                             <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                               {canWrite && <Btn onClick={() => openEdit(a)} variant="outline" color={T.teal} size="sm"><Edit2 size={12} /> Modifier</Btn>}
                               {canWrite && <Btn onClick={() => toggleStatus(a)} variant="outline" color={stColor} size="sm">{isHeld(a.status) ? `↩ ${ref.label('audience_status', firstOpenSt)}` : `✓ ${ref.label('audience_status', firstHeld)}`}</Btn>}
-                              {canDelete && <Btn onClick={() => remove(a)} variant="outline" color="#ef4444" size="sm"><Trash2 size={12} /> Supprimer</Btn>}
+                              {canDelete && <Btn onClick={() => remove(a)} variant="outline" color={T.danger} size="sm"><Trash2 size={12} /> Supprimer</Btn>}
                             </div>
                           </div>
                         </div>
@@ -416,7 +416,7 @@ export default function Audiences() {
             </div>
           </div>
         </div>
-        <ModalFooter onCancel={() => setShowModal(false)} onConfirm={save} loading={saving} color="#8b5cf6" />
+        <ModalFooter onCancel={() => setShowModal(false)} onConfirm={save} loading={saving} color={T.purple} />
       </Modal>
     </div>
   );

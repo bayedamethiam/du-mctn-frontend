@@ -34,6 +34,7 @@ const SETTINGS_FORM = [
     ['ministry_short','Sigle du ministère'], ['ministry_name','Nom complet du ministère'], ['country','Pays'],
     ['email_domain','Domaine email'], ['phone_prefix','Indicatif téléphonique'],
     ['app_url','Adresse publique de l\'application (liens envoyés par email)'],
+    ['default_theme','Apparence proposée par défaut', 'select', [['dark','Mode nuit'], ['light','Mode jour']]],
   ]},
   { group: 'Plan stratégique', fields: [
     ['plan_name','Nom du plan'], ['plan_short','Sigle du plan'], ['plan_start','Année de début'], ['plan_end','Année de fin'],
@@ -233,7 +234,7 @@ function UsersTab() {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     {mfaOn
-                      ? <span style={{ background: `${T.success}26`, color: T.success, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Activée</span>
+                      ? <span style={{ background: 'rgba(16,185,129,0.15)', color: T.success, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>Activée</span>
                       : <span style={{ color: T.textDim }}>-</span>}
                   </td>
                   <td style={{ padding: '12px 16px', color: T.textMuted, whiteSpace: 'nowrap', fontSize: 12 }}>{fmtDateTime(u.last_login_at, 'Jamais')}</td>
@@ -564,7 +565,7 @@ function RolesTab() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'DM Sans', fontSize: 14, color: T.text, fontWeight: 600 }}>{r.label}</span>
                   <span style={{ width: 10, height: 10, borderRadius: 3, background: ref.roleColor(r.code), flexShrink: 0 }} />
-                  {sys && <span style={{ background: `${T.warning}22`, color: T.warning, padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>système</span>}
+                  {sys && <span style={{ background: 'rgba(245,158,11,0.13)', color: T.warning, padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>système</span>}
                 </div>
                 {r.description && <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted, marginTop: 3 }}>{r.description}</div>}
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 3 }}>
@@ -598,7 +599,7 @@ function RolesTab() {
               <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.teal, fontWeight: 600 }}>{checked.length} droits sur {catalog.length}</span>
             </div>
             {isSystem && (
-              <div style={{ background: `${T.warning}15`, border: `1px solid ${T.warning}45`, borderRadius: 8, padding: '9px 13px', marginBottom: 10, fontFamily: 'DM Sans', fontSize: 12, color: T.warning }}>
+              <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.27)', borderRadius: 8, padding: '9px 13px', marginBottom: 10, fontFamily: 'DM Sans', fontSize: 12, color: T.warning }}>
                 Tous les droits, non modifiables
               </div>
             )}
@@ -687,7 +688,7 @@ function RefTab() {
             <div style={{ fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: T.textDim, padding: '8px 10px 4px' }}>{g.group}</div>
             {g.items.map(([d, l]) => (
               <button key={d} onClick={() => setDomain(d)}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, background: domain === d ? `${T.teal}20` : 'transparent', color: domain === d ? T.teal : T.textMuted }}>
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, background: domain === d ? 'rgba(6,182,212,0.13)' : 'transparent', color: domain === d ? T.teal : T.textMuted }}>
                 {l}
               </button>
             ))}
@@ -813,7 +814,7 @@ function SettingsTab() {
       ))}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
         {saved && <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: T.success }}>✓ Paramètres enregistrés</span>}
-        <Btn onClick={save} disabled={saving}>{saving ? <Spinner size={14} color="#fff" /> : <><Save size={14} /> Enregistrer</>}</Btn>
+        <Btn onClick={save} disabled={saving}>{saving ? <Spinner size={14} color={T.onAccent} /> : <><Save size={14} /> Enregistrer</>}</Btn>
       </div>
     </div>
   );
@@ -833,7 +834,7 @@ export default function Administration() {
         <div style={{ display: 'flex', gap: 6, marginBottom: 22 }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${tab === t.id ? T.teal : T.border}`, background: tab === t.id ? `${T.teal}18` : 'transparent', color: tab === t.id ? T.teal : T.textMuted }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'DM Sans', fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${tab === t.id ? T.teal : T.border}`, background: tab === t.id ? 'rgba(6,182,212,0.12)' : 'transparent', color: tab === t.id ? T.teal : T.textMuted }}>
               <t.icon size={14} />{t.label}
             </button>
           ))}

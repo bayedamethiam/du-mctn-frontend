@@ -42,7 +42,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
         <Spinner size={40} />
-        <p style={{ fontFamily: 'DM Sans', color: 'rgba(255,255,255,0.4)', marginTop: 16, fontSize: 13 }}>Chargement…</p>
+        <p style={{ fontFamily: 'DM Sans', color: T.textDim, marginTop: 16, fontSize: 13 }}>Chargement…</p>
       </div>
     </div>
   );

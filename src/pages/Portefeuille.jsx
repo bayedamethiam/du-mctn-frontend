@@ -6,7 +6,7 @@ import { useRefData } from '../context/RefContext.jsx';
 import { hasPerm } from '../permissions.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Badge, ProgressBar, Spinner, ErrorBanner, Modal, ModalFooter, Input, Select, Textarea } from '../components/UI.jsx';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 
 /* ── Phases de secours (utilisées uniquement si aucun template n'est disponible) ── */
 const FALLBACK_PHASES = [
@@ -61,7 +61,7 @@ const CircleProgress = ({ pct, color = '#06b6d4', size = 38 }) => {
   const r = (size - 6) / 2, c = 2 * Math.PI * r, dash = (pct / 100) * c;
   return (
     <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.1)" strokeWidth={4} fill="none" />
+      <circle cx={size / 2} cy={size / 2} r={r} stroke={T.track} strokeWidth={4} fill="none" />
       <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={4} fill="none"
         strokeDasharray={`${dash.toFixed(1)} ${c.toFixed(1)}`} strokeLinecap="round" />
     </svg>
@@ -69,7 +69,7 @@ const CircleProgress = ({ pct, color = '#06b6d4', size = 38 }) => {
 };
 
 const ProjBadge = ({ color = T.textDim, label = '-' }) => (
-  <span style={{ background: `${color}18`, color, fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, border: `1px solid ${color}30`, whiteSpace: 'nowrap' }}>
+  <span style={{ background: `${alpha(color, 13)}`, color, fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, border: `1px solid ${alpha(color, 19)}`, whiteSpace: 'nowrap' }}>
     {label}
   </span>
 );
@@ -413,7 +413,7 @@ export default function Portefeuille() {
           {axes.map(ax => (
             <button key={ax.id} onClick={() => setAxFilter(ax.id)}
               style={{ padding: '6px 14px', borderRadius: 20, border: `1px solid ${String(axFilter) === String(ax.id) ? ax.color : T.border}`,
-                background: String(axFilter) === String(ax.id) ? `${ax.color}20` : 'transparent',
+                background: String(axFilter) === String(ax.id) ? `${alpha(ax.color, 13)}` : 'transparent',
                 color: String(axFilter) === String(ax.id) ? ax.color : T.textMuted,
                 fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap', fontFamily: 'DM Sans' }}>
               {ax.label}
@@ -534,7 +534,7 @@ export default function Portefeuille() {
             </div>
           )}
           {budgetGap !== 0 && (
-            <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '6px 10px' }}>
+            <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '6px 10px' }}>
               ⚠ Écart budgétaire : programme {parseFloat(progForm.budget) || 0} vs somme des projets {editProg.projects_budget} {currency} ({budgetGap > 0 ? '+' : ''}{budgetGap})
             </div>
           )}
@@ -543,7 +543,7 @@ export default function Portefeuille() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {AX_COLORS.map(c => (
                 <button key={c} onClick={() => setProgForm(f => ({ ...f, color: c }))}
-                  style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: progForm.color === c ? `3px solid #fff` : `2px solid transparent`,
+                  style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: progForm.color === c ? `3px solid ${T.onAccent}` : `2px solid transparent`,
                     cursor: 'pointer', outline: progForm.color === c ? `2px solid ${c}` : 'none', transition: 'all .15s' }} />
               ))}
               <input type="color" value={progForm.color || '#3b82f6'} onChange={e => setProgForm(f => ({ ...f, color: e.target.value }))}
@@ -575,7 +575,7 @@ export default function Portefeuille() {
                 {AX_COLORS.map(c => (
                   <button key={c} onClick={() => setAxeForm(f => ({ ...f, color: c }))}
                     style={{ width: 22, height: 22, borderRadius: '50%', background: c,
-                      border: axeForm.color === c ? '3px solid #fff' : '2px solid transparent',
+                      border: axeForm.color === c ? `3px solid ${T.onAccent}` : '2px solid transparent',
                       cursor: 'pointer', outline: axeForm.color === c ? `2px solid ${c}` : 'none', transition: 'all .15s' }} />
                 ))}
                 <input type="color" value={axeForm.color} onChange={e => setAxeForm(f => ({ ...f, color: e.target.value }))}
@@ -592,7 +592,7 @@ export default function Portefeuille() {
             <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
               <div style={{ fontSize: 11, color: T.textDim, fontFamily: 'DM Sans', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Axes existants</div>
               {axes.map(a => (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${T.border}10` }}>
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${alpha(T.border, 8)}` }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: a.color, flexShrink: 0 }} />
                   <div style={{ fontSize: 10, color: T.textDim, fontFamily: 'DM Sans', minWidth: 24 }}>{a.code}</div>
                   <div style={{ flex: 1, fontSize: 13, color: T.text, fontFamily: 'DM Sans' }}>{a.label}</div>
@@ -667,7 +667,7 @@ export default function Portefeuille() {
                 {perms.tplCreate && (!showTplSave ? (
                   <button onClick={() => { setShowTplSave(true); setTplNameInput(''); }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
-                      padding: '5px 12px', borderRadius: 6, border: `1px solid #10b98155`, background: 'rgba(16,185,129,0.08)',
+                      padding: '5px 12px', borderRadius: 6, border: `1px solid #10b98155`, background: 'rgba(16,185,129,0.12)',
                       color: '#10b981', cursor: 'pointer' }}>
                     <Plus size={11} /> Enregistrer comme template réutilisable
                   </button>
@@ -676,7 +676,7 @@ export default function Portefeuille() {
                     <input value={tplNameInput} onChange={e => setTplNameInput(e.target.value)}
                       placeholder="Nom du template (ex: Cycle standard)…" autoFocus
                       onKeyDown={e => e.key === 'Enter' && !savingTpl && tplNameInput.trim() && document.getElementById('btn-save-tpl')?.click()}
-                      style={{ flex: 1, background: '#0d1b30', border: `1px solid ${T.border}`, borderRadius: 6, padding: '6px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none' }} />
+                      style={{ flex: 1, background: T.field, border: `1px solid ${T.border}`, borderRadius: 6, padding: '6px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none' }} />
                     <button id="btn-save-tpl" disabled={savingTpl || !tplNameInput.trim()} onClick={async () => {
                       if (!tplNameInput.trim()) return;
                       setSavingTpl(true);
@@ -686,7 +686,7 @@ export default function Portefeuille() {
                         setShowTplSave(false);
                       } catch (e2) { setError(e2.message); }
                       finally { setSavingTpl(false); }
-                    }} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans', cursor: savingTpl ? 'wait' : 'pointer', opacity: !tplNameInput.trim() ? 0.5 : 1 }}>
+                    }} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#10b981', color: T.onAccent, fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans', cursor: savingTpl ? 'wait' : 'pointer', opacity: !tplNameInput.trim() ? 0.5 : 1 }}>
                       {savingTpl ? '…' : 'Enregistrer'}
                     </button>
                     <button onClick={() => setShowTplSave(false)} style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
@@ -758,7 +758,7 @@ export default function Portefeuille() {
       <Modal open={rdvModal} onClose={() => setRdvModal(false)} title={`Rendez-vous - ${rdvProject?.name || ''}`} width={580}>
         {/* Formulaire ajout/édition */}
         {perms.rdvEdit && (
-        <div style={{ background: 'rgba(6,182,212,0.04)', border: `1px solid rgba(6,182,212,0.15)`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+        <div style={{ background: 'rgba(6,182,212,0.12)', border: `1px solid rgba(6,182,212,0.15)`, borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#06b6d4', fontFamily: 'DM Sans', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>
             {editRdv ? 'Modifier le rendez-vous' : 'Ajouter un rendez-vous'}
           </div>
@@ -783,7 +783,7 @@ export default function Portefeuille() {
               Annuler
             </button>}
             <button disabled={savingRdv || !rdvForm.title || !rdvForm.date} onClick={handleSaveRdv}
-              style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#06b6d4', color: '#fff', fontSize: 12, fontWeight: 700, fontFamily: 'DM Sans', cursor: savingRdv ? 'wait' : 'pointer', opacity: (!rdvForm.title || !rdvForm.date) ? 0.5 : 1 }}>
+              style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#06b6d4', color: T.onAccent, fontSize: 12, fontWeight: 700, fontFamily: 'DM Sans', cursor: savingRdv ? 'wait' : 'pointer', opacity: (!rdvForm.title || !rdvForm.date) ? 0.5 : 1 }}>
               {savingRdv ? '…' : editRdv ? 'Mettre à jour' : '+ Ajouter'}
             </button>
           </div>
@@ -809,7 +809,7 @@ export default function Portefeuille() {
                       <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: T.text }}>{m.title}</div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 10, color: T.textDim, fontFamily: 'DM Sans' }}>{m.time || ''}</span>
-                        <span style={{ fontSize: 10, background: `${tColor}1a`, color: tColor, fontFamily: 'DM Sans', padding: '1px 6px', borderRadius: 4 }}>{ref.label('meeting_type', m.type)}</span>
+                        <span style={{ fontSize: 10, background: `${alpha(tColor, 10)}`, color: tColor, fontFamily: 'DM Sans', padding: '1px 6px', borderRadius: 4 }}>{ref.label('meeting_type', m.type)}</span>
                         {m.participants && <span style={{ fontSize: 10, color: T.textDim, fontFamily: 'DM Sans' }}>👥 {m.participants}</span>}
                       </div>
                       {m.notes && <div style={{ fontSize: 11, color: T.textDim, marginTop: 4, fontStyle: 'italic', fontFamily: 'DM Sans', lineHeight: 1.4 }}>{m.notes}</div>}
@@ -874,7 +874,7 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
       <input type="number" min={0} max={100} value={ph.weight} title="Poids"
         onChange={e => setPhase(i, 'weight', numIn(e.target.value))}
-        style={{ width: 44, background: '#0d1b30', border: `1px solid ${color}44`, borderRadius: 5, padding: '3px 4px', color, fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans', textAlign: 'center', outline: 'none' }} />
+        style={{ width: 44, background: T.field, border: `1px solid ${alpha(color, 27)}`, borderRadius: 5, padding: '3px 4px', color, fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans', textAlign: 'center', outline: 'none' }} />
       <span style={{ fontSize: 10, color: T.textDim, fontFamily: 'DM Sans' }}>%</span>
     </div>
   );
@@ -908,16 +908,16 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
         const late   = projectMode && ph.end_date && new Date(ph.end_date) < new Date() && ph.progress < 100;
         const color  = ph.color || '#06b6d4';
         const box = active
-          ? { marginBottom: 10, padding: '12px 14px', borderRadius: 8, background: `${color}0d`, border: `2px solid ${color}50` }
+          ? { marginBottom: 10, padding: '12px 14px', borderRadius: 8, background: `${alpha(color, 20)}`, border: `2px solid ${alpha(color, 31)}` }
           : done
-            ? { marginBottom: 6, padding: '7px 12px', borderRadius: 8, background: `${color}08`, border: `1px solid ${color}25` }
-            : { marginBottom: 6, padding: '8px 12px', borderRadius: 8, background: `${color}06`, border: `1px solid ${T.border}` };
+            ? { marginBottom: 6, padding: '7px 12px', borderRadius: 8, background: `${alpha(color, 13)}`, border: `1px solid ${alpha(color, 15)}` }
+            : { marginBottom: 6, padding: '8px 12px', borderRadius: 8, background: `${alpha(color, 13)}`, border: `1px solid ${T.border}` };
 
         return (
           <div key={ph.key || i} style={box}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {done
-                ? <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}><circle cx="7.5" cy="7.5" r="7.5" fill={color}/><polyline points="3.5,7.5 6.5,10.5 11.5,4.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                ? <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ flexShrink: 0 }}><circle cx="7.5" cy="7.5" r="7.5" fill={color}/><polyline points="3.5,7.5 6.5,10.5 11.5,4.5" stroke={T.onAccent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 : active
                   ? <div style={{ width: 9, height: 9, borderRadius: '50%', background: color, boxShadow: `0 0 5px ${color}`, flexShrink: 0 }} />
                   : <div style={{ width: 9, height: 9, borderRadius: '50%', background: color, opacity: 0.35, flexShrink: 0 }} />}
@@ -927,7 +927,7 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
               <input type="color" value={color} onChange={e => setPhase(i, 'color', e.target.value)} title="Couleur"
                 style={{ width: 18, height: 18, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0 }} />
               {projectMode && (active
-                ? <span style={{ fontSize: 10, background: `${color}20`, color, borderRadius: 4, padding: '2px 7px', fontFamily: 'DM Sans', fontWeight: 700 }}>Active</span>
+                ? <span style={{ fontSize: 10, background: `${alpha(color, 13)}`, color, borderRadius: 4, padding: '2px 7px', fontFamily: 'DM Sans', fontWeight: 700 }}>Active</span>
                 : <button onClick={() => activate(i)} title="Définir comme phase en cours"
                     style={{ background: 'none', border: `1px solid ${T.border}`, color: T.textDim, cursor: 'pointer', fontSize: 10, fontFamily: 'DM Sans', padding: '1px 6px', borderRadius: 4 }}>
                     activer
@@ -951,12 +951,12 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
             {projectMode && open && (
               <div style={{ marginTop: 10 }}>
                 {/* Barre cliquable */}
-                <div style={{ height: 8, background: 'rgba(255,255,255,0.08)', borderRadius: 4, marginBottom: 10, cursor: 'pointer' }}
+                <div style={{ height: 8, background: T.track, borderRadius: 4, marginBottom: 10, cursor: 'pointer' }}
                   onClick={e => {
                     const r = e.currentTarget.getBoundingClientRect();
                     setPhase(i, 'progress', numIn(Math.round(((e.clientX - r.left) / r.width) * 100)));
                   }}>
-                  <div style={{ width: `${ph.progress || 0}%`, height: '100%', background: `linear-gradient(90deg,${color}99,${color})`, borderRadius: 4, transition: 'width .12s' }} />
+                  <div style={{ width: `${ph.progress || 0}%`, height: '100%', background: `linear-gradient(90deg,${alpha(color, 60)},${color})`, borderRadius: 4, transition: 'width .12s' }} />
                 </div>
                 {/* Dates + % */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
@@ -970,13 +970,13 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
                   </div>
                   <input type="number" min={0} max={100} value={ph.progress || 0}
                     onChange={e => setPhase(i, 'progress', numIn(e.target.value))}
-                    style={{ width: 58, background: '#0d1b30', border: `1px solid ${color}55`, borderRadius: 6, padding: '8px 6px', color, fontSize: 14, fontWeight: 800, fontFamily: 'DM Sans', textAlign: 'center', outline: 'none' }} />
+                    style={{ width: 58, background: T.field, border: `1px solid ${alpha(color, 33)}`, borderRadius: 6, padding: '8px 6px', color, fontSize: 14, fontWeight: 800, fontFamily: 'DM Sans', textAlign: 'center', outline: 'none' }} />
                 </div>
                 {/* Bouton phase suivante si 100% */}
                 {active && ph.progress === 100 && i < phases.length - 1 && (
                   <button onClick={() => activate(i + 1)}
                     style={{ marginTop: 10, width: '100%', padding: '7px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700,
-                      background: `linear-gradient(90deg,${color}25,${phases[i+1].color}25)`, color: phases[i+1].color,
+                      background: `linear-gradient(90deg,${alpha(color, 15)},${phases[i+1].color}25)`, color: phases[i+1].color,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     ✓ Démarrer « {phases[i+1].label} » →
                   </button>
@@ -1056,7 +1056,7 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
             {perms.projCreate && (
               <button onClick={e => onCreateProj(prog.id, e)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
-                  padding: '4px 10px', borderRadius: 7, border: `1px solid ${pColor}44`, background: `${pColor}12`, color: pColor, cursor: 'pointer' }}>
+                  padding: '4px 10px', borderRadius: 7, border: `1px solid ${alpha(pColor, 27)}`, background: `${alpha(pColor, 13)}`, color: pColor, cursor: 'pointer' }}>
                 <Plus size={11} /> Ajouter
               </button>
             )}
@@ -1082,7 +1082,7 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
                     return (
                       <div key={proj.id}
                         style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', position: 'relative', transition: 'border-color .2s' }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = T.textDim}
                         onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
 
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -1103,7 +1103,7 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
                                   const active = i === phIdx;
                                   return (
                                     <div key={ph.key || i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                                      {i > 0 && <div style={{ width: 10, height: 1, background: done ? `${ph.color}60` : T.border }} />}
+                                      {i > 0 && <div style={{ width: 10, height: 1, background: done ? `${alpha(ph.color, 38)}` : T.border }} />}
                                       <div title={`${ph.label} : ${ph.progress}%`} style={{
                                         width: active ? 8 : 6, height: active ? 8 : 6, borderRadius: '50%', flexShrink: 0,
                                         background: done || active ? ph.color : T.border,
@@ -1120,7 +1120,7 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
                               </div>
                               {activePh && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' }}>
+                                  <div style={{ flex: 1, height: 3, background: T.track, borderRadius: 2, overflow: 'hidden' }}>
                                     <div style={{ width: `${activePh.progress}%`, height: '100%', background: late ? '#ef4444' : activePh.color, borderRadius: 2, transition: 'width .3s' }} />
                                   </div>
                                   <div style={{ fontSize: 9, fontWeight: 700, color: late ? '#ef4444' : activePh.color, fontFamily: 'DM Sans', minWidth: 24, textAlign: 'right' }}>{activePh.progress}%</div>
