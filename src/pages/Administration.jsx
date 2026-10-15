@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw, ShieldCheck, UserPlus } from 'lucide-react';
+import { Users, ListChecks, Settings, Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, Save, Mail, ShieldOff, LogOut, History, RefreshCw, ShieldCheck, UserPlus, Upload } from 'lucide-react';
 import { usersApi, refApi, settingsApi, rolesApi } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
@@ -9,7 +9,7 @@ import PasswordChecklist, { usePasswordPolicy } from '../components/PasswordChec
 import { Card, RoleChip, Btn, Input, Select, Textarea, Modal, ModalFooter, Spinner, ErrorBanner, EmptyState } from '../components/UI.jsx';
 import { checkPassword } from '../utils/passwordPolicy.js';
 import { fmtDateTime, isFuture, shortUserAgent } from '../utils/authFormat.js';
-import { T } from '../theme.js';
+import { T, alpha } from '../theme.js';
 
 /* Libellés et regroupement des référentiels */
 const DOMAINS = [
@@ -35,6 +35,12 @@ const SETTINGS_FORM = [
     ['email_domain','Domaine email'], ['phone_prefix','Indicatif téléphonique'],
     ['app_url','Adresse publique de l\'application (liens envoyés par email)'],
     ['default_theme','Apparence proposée par défaut', 'select', [['dark','Mode nuit'], ['light','Mode jour']]],
+  ]},
+  { group: 'Logo', fields: [
+    ['logo_file','Fichier logo', 'logo'],
+    ['logo_flag_colors','Couleurs du bandeau', 'colors'],
+    ['logo_star_color','Couleur de l\'étoile', 'color'],
+    ['logo_line_color','Couleur du trait', 'color'],
   ]},
   { group: 'Plan stratégique', fields: [
     ['plan_name','Nom du plan'], ['plan_short','Sigle du plan'], ['plan_start','Année de début'], ['plan_end','Année de fin'],
@@ -752,6 +758,88 @@ function RefTab() {
   );
 }
 
+/* ── Paramètres : widgets du logo ─────────────────────────────── */
+
+/* Couleur unique ; vide = élément masqué sur le logo dessiné */
+function ColorField({ value, onChange }) {
+  const set = value && /^#[0-9a-f]{6}$/i.test(value);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input type="color" value={set ? value : '#000000'} onChange={e => onChange(e.target.value)}
+        style={{ width: 38, height: 34, padding: 2, border: `1px solid ${T.border}`, borderRadius: 7, background: T.field, cursor: 'pointer' }} />
+      <Input value={value || ''} onChange={onChange} placeholder="#1DB954 (vide = masqué)" style={{ flex: 1 }} />
+    </div>
+  );
+}
+
+/* Liste de couleurs (bandeau du logo), stockée en JSON */
+function ColorsField({ value, onChange }) {
+  let colors = [];
+  try { const p = JSON.parse(value || '[]'); if (Array.isArray(p)) colors = p; } catch { /* valeur illisible */ }
+  const emit = next => onChange(JSON.stringify(next));
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {colors.map((c, i) => (
+        <div key={i} style={{ position: 'relative' }}>
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(c) ? c : '#000000'}
+            onChange={e => emit(colors.map((x, j) => j === i ? e.target.value : x))}
+            style={{ width: 38, height: 34, padding: 2, border: `1px solid ${T.border}`, borderRadius: 7, background: T.field, cursor: 'pointer' }} />
+          <button type="button" title="Retirer cette couleur" onClick={() => emit(colors.filter((_, j) => j !== i))}
+            style={{ position: 'absolute', top: -7, right: -7, width: 17, height: 17, borderRadius: '50%', border: 'none', cursor: 'pointer', background: T.danger, color: T.onAccent, fontSize: 11, lineHeight: '17px', padding: 0 }}>×</button>
+        </div>
+      ))}
+      {colors.length < 6 && (
+        <button type="button" onClick={() => emit([...colors, '#3B82F6'])}
+          style={{ width: 38, height: 34, borderRadius: 7, border: `1px dashed ${T.border}`, background: 'transparent', color: T.textMuted, cursor: 'pointer', fontSize: 16 }}>+</button>
+      )}
+      {!colors.length && <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>Aucune couleur : pas de bandeau</span>}
+    </div>
+  );
+}
+
+/* Fichier logo : enregistré immédiatement (hors formulaire), il remplace le logo dessiné */
+function LogoField({ onError }) {
+  const ref = useRefData();
+  const [busy, setBusy] = useState(false);
+  const file = ref.setting('logo_file');
+
+  const run = async action => {
+    setBusy(true); onError('');
+    try { await action(); await ref.reload(); }
+    catch (e) { onError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ width: 92, height: 62, borderRadius: 9, border: `1px solid ${T.border}`, background: T.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {file
+          ? <img src={settingsApi.logoUrl(file)} alt="Logo" style={{ maxWidth: '86%', maxHeight: '86%', objectFit: 'contain' }} />
+          : <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim, textAlign: 'center', padding: 6 }}>Logo dessiné</span>}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <label style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, padding: '8px 14px', borderRadius: 8, cursor: busy ? 'default' : 'pointer', border: `1px solid ${T.border}`, color: T.text, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            {busy ? <Spinner size={13} /> : <Upload size={13} />} Choisir un fichier
+            <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg" disabled={busy} style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) run(() => settingsApi.uploadLogo(f)); }} />
+          </label>
+          {file && (
+            <button type="button" disabled={busy} onClick={() => run(() => settingsApi.deleteLogo())}
+              style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, padding: '8px 14px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${alpha(T.danger, 30)}`, background: 'transparent', color: T.danger }}>
+              Supprimer
+            </button>
+          )}
+        </div>
+        <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim }}>
+          PNG, JPG, WEBP ou SVG, 2 Mo maximum. Un fichier remplace le logo dessiné et ses couleurs.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /* ── Paramètres ───────────────────────────────────────────────── */
 function SettingsTab() {
   const ref = useRefData();
@@ -763,6 +851,7 @@ function SettingsTab() {
   useEffect(() => {
     const pretty = {};
     for (const g of SETTINGS_FORM) for (const [k, , type] of g.fields) {
+      if (type === 'logo') continue;   // enregistré par sa propre route, pas par le formulaire
       const v = ref.settings[k] ?? '';
       pretty[k] = type === 'json' && v ? (() => { try { return JSON.stringify(JSON.parse(v), null, 2); } catch { return v; } })() : v;
     }
@@ -773,6 +862,7 @@ function SettingsTab() {
     setError(''); setSaved(false);
     const payload = {};
     for (const g of SETTINGS_FORM) for (const [k, l, type] of g.fields) {
+      if (type === 'logo') continue;
       // Paramètre absent en base et laissé vide : ne pas l'écraser (le serveur applique sa valeur par défaut)
       if (!(k in ref.settings) && !String(form[k] ?? '').trim()) continue;
       if (type === 'json') {
@@ -794,13 +884,23 @@ function SettingsTab() {
           <h3 style={{ fontFamily: 'EB Garamond', fontSize: 20, color: T.text, marginBottom: 14 }}>{g.group}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
             {g.fields.map(([k, l, type, opts]) => (
-              <div key={k} style={{ gridColumn: type === 'json' || type === 'textarea' ? '1 / -1' : undefined }}>
+              <div key={k} style={{
+                gridColumn: type === 'json' || type === 'textarea' || type === 'logo' ? '1 / -1' : undefined,
+                // Couleurs du logo dessiné : sans effet tant qu'un fichier est téléversé
+                opacity: (type === 'color' || type === 'colors') && ref.setting('logo_file') ? 0.45 : 1,
+              }}>
                 <Field label={l}>
-                  {type === 'select'
-                    ? <Select value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))}>{opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</Select>
-                    : type === 'json' || type === 'textarea'
-                      ? <Textarea value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} rows={type === 'json' ? Math.min(10, (form[k] || '').split('\n').length + 1) : 2} style={type === 'json' ? { fontFamily: 'monospace', fontSize: 12 } : {}} />
-                      : <Input value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} />}
+                  {type === 'logo'
+                    ? <LogoField onError={setError} />
+                    : type === 'colors'
+                      ? <ColorsField value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} />
+                      : type === 'color'
+                        ? <ColorField value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} />
+                        : type === 'select'
+                          ? <Select value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))}>{opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</Select>
+                          : type === 'json' || type === 'textarea'
+                            ? <Textarea value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} rows={type === 'json' ? Math.min(10, (form[k] || '').split('\n').length + 1) : 2} style={type === 'json' ? { fontFamily: 'monospace', fontSize: 12 } : {}} />
+                            : <Input value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} />}
                 </Field>
                 {k === 'mfa_required_roles' && (
                   <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 6 }}>

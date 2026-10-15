@@ -258,6 +258,11 @@ export const settingsApi = {
   public: ()  => api.get('/settings/public'),
   all:    ()  => api.get('/settings'),
   update: d   => api.put('/settings', d),
+  // Logo de l'organisation : route publique (affiché avant connexion), le nom de fichier
+  // change à chaque remplacement et sert donc de cache-buster
+  logoUrl:    file => `${BASE}/settings/logo?f=${encodeURIComponent(file)}`,
+  uploadLogo: file => api.upload('/settings/logo', file),
+  deleteLogo: ()   => api.delete('/settings/logo'),
 };
 
 // Utilisateurs (administration)

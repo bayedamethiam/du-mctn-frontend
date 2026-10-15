@@ -117,6 +117,7 @@ export const SETTINGS_FALLBACK = {
   country: 'Sénégal', plan_name: 'New Deal Technologique', plan_short: 'NDT', plan_start: '2025', plan_end: '2034',
   currency_unit: 'Md FCFA', email_domain: 'mctn.sn', phone_prefix: '+221',
   score_thresholds: '[75,50,30]', alert_days: '3', program_progress_mode: 'manual', default_theme: 'dark',
+  logo_file: '', logo_flag_colors: '["#1DB954","#F7D20A","#E8001C"]', logo_star_color: '#1DB954', logo_line_color: '#3B82F6',
 };
 
 /* Repli d'affichage des statuts quand le référentiel ne fournit rien.

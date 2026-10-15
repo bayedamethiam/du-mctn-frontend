@@ -23,27 +23,30 @@ Conséquences du choix « pas de routeur » :
 - le seul paramètre d'URL lu est `reset_token`, consommé par `Login.jsx` puis retiré de la barre d'adresse ;
 - `public/.htaccess` réécrit toute requête non fichier vers `index.html`, ce qui suffit pour une application à écran unique.
 
-Graphisme : thème sombre unique (`T.bg` = `#060f22`), pas de mode clair.
+Graphisme : deux thèmes, nuit (par défaut) et jour. Les jetons `T` ne portent pas de couleurs mais
+des variables CSS (`var(--du-*)`) redéfinies sur `<html>` ; changer de thème ne touche à aucun
+composant. Voir « Thème » en fin de section 4.
 
 ## 2. Arborescence de `src`
 
 ```
 src/
-├── main.jsx                  Point d'entrée : monte AuthProvider > RefProvider > App
+├── main.jsx                  Point d'entrée : monte ThemeProvider > AuthProvider > RefProvider > App
 ├── App.jsx                   Table VIEWS, état `view`, rechargement périodique des alertes
 ├── api.js                    Couche HTTP unique : jetons, refresh, erreurs, clients par domaine
 ├── permissions.js            Droits côté interface : hasPerm, ADMIN_PERMS, repli hérité
-├── theme.js                  Jetons de couleur T, statusConf, SETTINGS_FALLBACK
+├── theme.js                  Palettes, jetons T (variables CSS), alpha(), applyTheme, statusConf
 │
 ├── context/
 │   ├── AuthContext.jsx       Session : login, 2FA, completeLogin, logout, refreshUser
-│   └── RefContext.jsx        Référentiels, paramètres, rôles ; helpers list/label/color/has…
+│   ├── RefContext.jsx        Référentiels, paramètres, rôles ; helpers list/label/color/has…
+│   └── ThemeContext.jsx      Apparence : clair, sombre ou système, mémorisée par navigateur
 │
 ├── components/
 │   ├── UI.jsx                Composants partagés (Card, Badge, Btn, Modal…)
 │   ├── Layout.jsx            En-tête, barre de navigation, menu compte
 │   ├── HeroBanner.jsx        Bandeau de tête d'écran (titre, statistiques, action)
-│   ├── LogoDU.jsx            Logo paramétrable (sigle et sous-titre issus des paramètres)
+│   ├── LogoDU.jsx            Logo : fichier téléversé, sinon logo dessiné paramétrable
 │   ├── AccountModal.jsx      Mon compte : profil, mot de passe, 2FA, sessions
 │   └── PasswordChecklist.jsx Règles de mot de passe + hook usePasswordPolicy
 │
@@ -239,7 +242,7 @@ Une valeur de référentiel a la forme suivante côté API :
 
 Le champ d'ordre s'appelle `position`. `meta` est déjà désérialisé en objet par le serveur. `is_system` et `is_active` sont des entiers.
 
-`/settings` renvoie un objet plat dont **toutes les valeurs sont des chaînes**, y compris les valeurs structurées. D'où l'existence de `ref.json(key, fallback)` : `score_thresholds`, `instance_pillars`, `se_cycle`, `currencies`, `mfa_required_roles`, `project_closed_statuses`, `stats_excluded_programs` et `instance_urgency_days` doivent toujours passer par lui, jamais par `ref.setting`.
+`/settings` renvoie un objet plat dont **toutes les valeurs sont des chaînes**, y compris les valeurs structurées. D'où l'existence de `ref.json(key, fallback)` : `score_thresholds`, `instance_pillars`, `se_cycle`, `currencies`, `mfa_required_roles`, `project_closed_statuses`, `stats_excluded_programs`, `instance_urgency_days` et `logo_flag_colors` doivent toujours passer par lui, jamais par `ref.setting`.
 
 Marqueurs `meta` employés dans le code : `closed`, `done`, `held`, `open`, `nominal`, `alert`, `critical`, `high`, `active`. Ce sont les neuf marqueurs que le serveur protège sur les valeurs système. Deux clés supplémentaires ne sont pas protégées et peuvent disparaître si quelqu'un réécrit les métadonnées : `strong` (utilisé par `Instances.jsx` sur `instance_level`) et `desc` (texte d'aide affiché par `SuiviEval.jsx` sur `indicator_status`). Le marqueur `done` n'est lu que par le frontend ; le serveur ne s'en sert nulle part.
 
@@ -250,6 +253,24 @@ Valeurs de repli, par ordre de priorité :
 3. `statusConf` (`theme.js`) : libellés et couleurs de statut, utilisés par `Badge` sans domaine ou sur un code inconnu.
 
 Subtilité de `codes` : le repli `FLAG_FALLBACK` ne s'applique que si le domaine est totalement absent. Dès que le référentiel est chargé, un domaine sans marqueur renvoie un tableau vide, et les bascules de statut qui en dépendent deviennent inertes. Un référentiel mal renseigné se traduit donc par des boutons sans effet plutôt que par une erreur.
+
+### Thème (`ThemeContext.jsx` + `theme.js`)
+
+`PALETTES.dark` et `PALETTES.light` associent un nom de jeton à une couleur. `applyTheme(mode)` écrit
+la palette retenue sur `<html>` sous forme de variables CSS `--du-*` et renseigne `color-scheme` ;
+les jetons `T` valent `var(--du-<nom>)` et ne changent jamais. Aucun composant ne sait donc quel
+thème est actif, à deux exceptions près : la barre de navigation et les bandeaux de tête d'écran
+restent bleu nuit dans les deux thèmes (constantes `BAR` dans `Layout.jsx`, dégradé `hero-*`), et
+`LogoDU` prend une prop `onDark` pour le texte posé dessus.
+
+Ordre de décision de l'apparence :
+
+1. choix personnel, mémorisé dans `localStorage` sous `du_theme` (`light`, `dark` ou `system`) ;
+2. à défaut, paramètre d'organisation `default_theme`, appliqué par `RefContext` via `setDefault()` ;
+3. en mode `system`, `matchMedia('(prefers-color-scheme: dark)')`, suivi en direct.
+
+`system` est mémorisé comme les autres valeurs : sans cela, la valeur par défaut de l'organisation
+reprendrait la main au rechargement suivant.
 
 ## 5. Droits côté interface
 
@@ -312,8 +333,8 @@ Le catalogue serveur compte 39 droits, répartis en huit familles (Portefeuille 
 ### Conventions de style
 
 - Toutes les couleurs viennent de `T` (`theme.js`). Aucun hexadécimal direct dans une page, sauf les couleurs de type d'événement, constantes locales assumées (`EVT_TYPES` dans `Dashboard.jsx`, `TYPES` dans `Calendrier.jsx`) et les palettes de sélection `COLORS` et `AX_COLORS`.
-- L'opacité s'obtient en suffixant un hexadécimal : `` `${color}26` `` pour environ 15 %, `` `${color}18` ``, `` `${color}44` ``. Cela suppose des couleurs de référentiel au format hexadécimal.
-- Fonds opaques : `T.panel` (`#0d1f3c`) pour les fenêtres d'édition, `T.field` (`#13294a`) pour les champs. L'opacité est délibérée, pour que la page ne transparaisse pas derrière un formulaire ouvert au-dessus du voile sombre.
+- L'opacité passe par `alpha(couleur, pourcentage)` de `theme.js`, qui s'appuie sur `color-mix`. Suffixer un hexadécimal (`` `${T.teal}26` ``) ne fonctionne plus : un jeton `T` vaut `var(--du-teal)`, la concaténation produit du CSS invalide et la propriété est silencieusement ignorée. `alpha()` accepte aussi bien un jeton qu'une couleur de référentiel.
+- Fonds opaques : `T.panel` pour les fenêtres d'édition, `T.field` pour les champs. L'opacité est délibérée, pour que la page ne transparaisse pas derrière un formulaire ouvert au-dessus du voile.
 - Deux familles typographiques, indiquées explicitement sur chaque élément : `EB Garamond` pour les titres, `DM Sans` pour le reste. Les animations `fade-in` et `slide-in` sont des classes CSS de `index.html`, appliquées via `className`.
 
 ## 7. Les écrans
