@@ -53,7 +53,7 @@ src/
 ├── pages/
 │   ├── Login.jsx             Connexion, 2FA, mot de passe oublié, réinitialisation
 │   ├── Dashboard.jsx         KPI, alertes, programmes, événements à venir
-│   ├── Portefeuille.jsx      Axes, programmes, projets, phases, templates, rendez-vous
+│   ├── Portefeuille.jsx      Axes, programmes, projets, workflows par niveau, modèles, rendez-vous
 │   ├── Diligences.jsx        Instructions ministérielles et leur suivi
 │   ├── Partenariats.jsx      Partenaires et documents ; onglet imbriqué Instances
 │   ├── Instances.jsx         Représentation internationale, scores, contributions
@@ -366,7 +366,7 @@ Quatre étapes dans un même composant, pilotées par l'état `step` : `password
 
 ### 7.3 `Portefeuille.jsx`
 
-L'écran le plus dense (environ 1 170 lignes, trois composants : `Portefeuille`, `PhaseEditor`, `ProgramCard`).
+L'écran le plus dense (environ 1 250 lignes, quatre composants : `Portefeuille`, `LevelTemplates`, `PhaseEditor`, `ProgramCard`).
 
 - Données : `programs`, `team`, `axes`, `workflow-templates` au chargement ; les projets d'un programme sont chargés à la demande, au premier dépliage, et mis en cache dans `projMap`.
 - Actions et droits :
@@ -380,12 +380,13 @@ L'écran le plus dense (environ 1 170 lignes, trois composants : `Portefeuille`,
 | supprimer un template | `templates.delete` |
 | gérer les rendez-vous projet | `meetings.manage`, `meetings.delete` |
 
-- Modèle des phases : chaque projet porte un tableau `phases` sérialisé en JSON, dont chaque entrée a `key`, `label`, `color`, `weight`, `start_date`, `end_date`, `progress`. L'avancement global est recalculé côté client par `computeGlobal` (somme de `progress × weight / 100`) et envoyé dans le champ `progress`.
+- Modèle des workflows : un projet porte un workflow **par niveau** dans `workflows`, sérialisé en JSON sous la forme `{ <niveau>: { current, steps[] } }`. Chaque étape a `key`, `label`, `color`, `weight`, `start_date`, `end_date`, `progress`. Les niveaux viennent du paramètre `project_workflow_levels` (par défaut Préparation, Phase du projet, Statut du projet) et sont indépendants : aucune combinaison n'est interdite. Le serveur en dérive `progress`, `phases` et `status`, que l'interface n'envoie donc plus.
+- `PhaseEditor` sert à la fois un niveau de projet, un niveau de modèle et la fenêtre d'édition d'un modèle ; `isMain` distingue le niveau principal, seul à calculer l'avancement du projet. `LevelTemplates` affiche les modèles réutilisables d'un seul niveau (`workflow_templates.level`), avec un modèle par défaut par niveau.
 - Points d'attention :
-  - la somme des poids doit valoir 100 ; l'écart est signalé et l'enregistrement demande confirmation, il n'est pas bloqué ;
+  - la somme des poids doit valoir 100 sur le niveau principal ; l'écart est signalé et l'enregistrement demande confirmation, il n'est pas bloqué. Sur les autres niveaux la somme reste affichée, sans avertissement ;
   - le paramètre `program_progress_mode` (`manual` ou `projects`) décide si l'avancement d'un programme est saisi ou calculé depuis les projets, pondéré par budget ; dans le second cas le champ est désactivé et la valeur calculée est affichée ;
   - `project_closed_statuses` et `stats_excluded_programs` (paramètres JSON) évitent de coder en dur des codes de statut ou de programme ;
-  - appliquer un template réinitialise dates et avancement des phases, avec confirmation en modification.
+  - appliquer un modèle réinitialise dates et avancement du niveau concerné, avec confirmation en modification ; les autres niveaux ne bougent pas.
 
 Anomalie : voir la section 10, ligne 1078.
 

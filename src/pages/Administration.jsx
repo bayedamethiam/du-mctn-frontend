@@ -50,6 +50,7 @@ const SETTINGS_FORM = [
     ['program_progress_mode','Avancement des programmes', 'select', [['manual','Saisi manuellement'], ['projects','Calculé depuis les projets']]],
     ['stats_excluded_programs','Programmes exclus des statistiques (codes, JSON)', 'json'],
     ['project_closed_statuses','Statuts de projet considérés comme clôturés (codes, JSON)', 'json'],
+    ['project_workflow_levels','Niveaux de workflow des projets (JSON)', 'json'],
     ['currencies','Devises proposées (JSON)', 'json'],
     ['score_thresholds','Seuils de score vert / bleu / orange (JSON)', 'json'],
     ['alert_days','Seuil d\'alerte échéance (jours)'],
@@ -902,6 +903,12 @@ function SettingsTab() {
                             ? <Textarea value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} rows={type === 'json' ? Math.min(10, (form[k] || '').split('\n').length + 1) : 2} style={type === 'json' ? { fontFamily: 'monospace', fontSize: 12 } : {}} />
                             : <Input value={form[k] || ''} onChange={v => setForm(p => ({ ...p, [k]: v }))} />}
                 </Field>
+                {k === 'project_workflow_levels' && (
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 6 }}>
+                    Un workflow par niveau sur la fiche projet. Le niveau portant <code>"main": true</code> calcule l'avancement du projet ;
+                    le niveau de clé <code>status</code> alimente le statut utilisé par le tableau de bord. Les modèles de chaque niveau se gèrent depuis la fiche projet.
+                  </div>
+                )}
                 {k === 'mfa_required_roles' && (
                   <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 6 }}>
                     Codes de rôle disponibles : {(ref.roles || []).map(r => r.code).join(', ') || '-'} · exemple : ["admin","director"]

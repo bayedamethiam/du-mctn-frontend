@@ -28,10 +28,53 @@ const toPhases = raw => {
 };
 const resetPhases = ps => ps.map(p => ({ ...p, start_date: '', end_date: '', progress: 0 }));
 
-/* Phases du template par défaut (is_default=1, sinon le premier), sinon repli */
-const defaultPhasesFrom = templates => {
-  const tpl = templates.find(t => Number(t.is_default) === 1) || templates[0];
+/* ── Niveaux de workflow ──────────────────────────────────────────
+ * Un projet porte un workflow par niveau : { <niveau>: { current, steps[] } }. Les niveaux sont
+ * déclarés dans le paramètre project_workflow_levels ; celui marqué `main` calcule l'avancement. */
+const LEVELS_FALLBACK = [
+  { key: 'preparation', label: 'Préparation' },
+  { key: 'phase',       label: 'Phase du projet', main: true },
+  { key: 'status',      label: 'Statut du projet' },
+];
+const mainLevel = levels => levels.find(l => l.main) || levels[0];
+
+/* Phases du template par défaut d'un niveau (is_default=1, sinon le premier), sinon repli */
+const defaultPhasesFrom = (templates, level = null) => {
+  const pool = level ? templates.filter(t => (t.level || 'phase') === level) : templates;
+  const tpl  = pool.find(t => Number(t.is_default) === 1) || pool[0];
   return resetPhases((tpl && toPhases(tpl.phases)) || FALLBACK_PHASES);
+};
+
+/* Workflows vierges : un par niveau, depuis le modèle par défaut du niveau */
+const defaultWorkflowsFrom = (templates, levels) => Object.fromEntries(levels.map(lv => {
+  const steps = defaultPhasesFrom(templates, lv.key);
+  return [lv.key, { current: steps[0]?.key || '', steps }];
+}));
+
+/* Workflows d'un projet ; un projet antérieur aux niveaux est relu depuis phases + status */
+const parseWorkflows = (proj, levels, defaults) => {
+  let raw = proj?.workflows;
+  if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (_) { raw = null; } }
+  const out = {};
+  for (const lv of levels) {
+    const w = raw && typeof raw === 'object' ? raw[lv.key] : null;
+    const steps = Array.isArray(w?.steps) && w.steps.length ? w.steps.map(s => ({ ...s })) : null;
+    if (steps) {
+      out[lv.key] = { current: steps.some(s => s.key === w.current) ? w.current : steps[0].key, steps };
+      continue;
+    }
+    const fallbackSteps = lv.main && proj ? toPhases(proj.phases) : null;
+    const base = fallbackSteps ? fallbackSteps.map(s => ({ ...s })) : (defaults[lv.key]?.steps || []).map(s => ({ ...s }));
+    const current = base.some(s => s.key === proj?.status) ? proj.status : base[0]?.key || '';
+    out[lv.key] = { current, steps: base };
+  }
+  return out;
+};
+
+/* Étape courante d'un niveau, pour l'affichage (pastille, libellé, couleur) */
+const currentStep = (workflows, key) => {
+  const w = workflows?.[key];
+  return w?.steps?.find(s => s.key === w.current) || null;
 };
 
 /* poids en % entiers (ex: weight=70 → 70%) */
@@ -68,8 +111,8 @@ const CircleProgress = ({ pct, color = '#06b6d4', size = 38 }) => {
   );
 };
 
-const ProjBadge = ({ color = T.textDim, label = '-' }) => (
-  <span style={{ background: `${alpha(color, 13)}`, color, fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, border: `1px solid ${alpha(color, 19)}`, whiteSpace: 'nowrap' }}>
+const ProjBadge = ({ color = T.textDim, label = '-', title }) => (
+  <span title={title} style={{ background: `${alpha(color, 13)}`, color, fontFamily: 'DM Sans', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, border: `1px solid ${alpha(color, 19)}`, whiteSpace: 'nowrap' }}>
     {label}
   </span>
 );
@@ -191,7 +234,13 @@ export default function Portefeuille() {
   /* Rafraîchit les agrégats (avancement / budget projets) après modification d'un projet */
   const refreshPrograms = () => programsApi.list().then(setPrograms).catch(() => {});
 
-  const defaultPhases = useMemo(() => defaultPhasesFrom(wfTemplates), [wfTemplates]);
+  const levels = useMemo(() => {
+    const v = ref.json('project_workflow_levels', LEVELS_FALLBACK);
+    return Array.isArray(v) && v.length && v.every(l => l && l.key) ? v : LEVELS_FALLBACK;
+  }, [ref.settings]);
+  const mainKey = mainLevel(levels).key;
+  const defaultWorkflows = useMemo(() => defaultWorkflowsFrom(wfTemplates, levels), [wfTemplates, levels]);
+  const defaultPhases    = defaultWorkflows[mainKey]?.steps || FALLBACK_PHASES;
 
   const toggleProg = async id => {
     const isOpen = !!openProgs[id];
@@ -282,35 +331,38 @@ export default function Portefeuille() {
   /* ── Handlers projet ── */
   const openCreateProj = (progId, e) => {
     e.stopPropagation();
-    const phases = defaultPhases.map(ph => ({ ...ph }));
-    setProjForm({ name: '', description: '', budget: '', status: phases[0]?.key || '', start_date: '', end_date: '', responsible: '', phases });
-    setEditProj(null); setProjProgId(progId); setProjModal(true); setShowTplSave(false);
+    const workflows = parseWorkflows(null, levels, defaultWorkflows);
+    setProjForm({ name: '', description: '', budget: '', start_date: '', end_date: '', responsible: '', workflows });
+    setEditProj(null); setProjProgId(progId); setProjModal(true); setShowTplSave(null);
   };
   const openEditProj = (proj, progId, e) => {
     e.stopPropagation();
-    const phases = parsePhases(proj, defaultPhases);
     setProjForm({
       name: proj.name || '', description: proj.description || '',
-      budget: String(proj.budget ?? ''), status: proj.status || phases[0]?.key || '',
+      budget: String(proj.budget ?? ''),
       start_date: proj.start_date || '', end_date: proj.end_date || '',
       responsible: proj.responsible || '',
-      phases,
+      workflows: parseWorkflows(proj, levels, defaultWorkflows),
     });
-    setEditProj(proj); setProjProgId(progId); setProjModal(true); setShowTplSave(false);
+    setEditProj(proj); setProjProgId(progId); setProjModal(true); setShowTplSave(null);
   };
+  /* Met à jour un seul niveau sans toucher aux autres */
+  const setLevel = (key, patch) => setProjForm(f => ({ ...f, workflows: { ...f.workflows, [key]: { ...f.workflows[key], ...patch } } }));
+
   const handleSaveProj = async () => {
     if (!projForm.name) return;
-    const sw = sumWeights(projForm.phases || []);
-    if (projForm.phases?.length && sw !== 100 && !window.confirm(`La somme des poids des phases est de ${sw}% (au lieu de 100%). Enregistrer quand même ?`)) return;
+    // Seul le niveau principal calcule l'avancement : lui seul doit totaliser 100 %
+    const mainSteps = projForm.workflows?.[mainKey]?.steps || [];
+    const sw = sumWeights(mainSteps);
+    if (mainSteps.length && sw !== 100 && !window.confirm(`La somme des poids du niveau « ${mainLevel(levels).label} » est de ${sw}% (au lieu de 100%). Enregistrer quand même ?`)) return;
     setSavingProj(true);
     try {
       const payload = {
         name: projForm.name, description: projForm.description,
         budget: parseFloat(projForm.budget) || 0,
-        status: projForm.status, start_date: projForm.start_date,
+        start_date: projForm.start_date,
         end_date: projForm.end_date, responsible: projForm.responsible,
-        phases: JSON.stringify(projForm.phases),
-        progress: computeGlobal(projForm.phases),
+        workflows: JSON.stringify(projForm.workflows),
       };
       if (editProj) {
         const updated = await programsApi.updateProject(editProj.id, payload);
@@ -334,24 +386,25 @@ export default function Portefeuille() {
     } catch (e) { setError(e.message); }
   };
 
-  /* ── Templates de workflow ── */
-  const applyTemplate = t => {
+  /* ── Templates de workflow (un jeu de modèles par niveau) ── */
+  const applyTemplate = (t, levelKey) => {
     const ps = toPhases(t.phases);
     if (!ps) return;
-    if (editProj && !window.confirm(`Remplacer les phases du projet par le template « ${t.name} » ? L'avancement et les dates des phases seront réinitialisés.`)) return;
+    const lv = levels.find(l => l.key === levelKey);
+    if (editProj && !window.confirm(`Remplacer le niveau « ${lv?.label || levelKey} » par le modèle « ${t.name} » ? L'avancement et les dates de ce niveau seront réinitialisés.`)) return;
     const fresh = resetPhases(ps);
-    setProjForm(f => ({ ...f, phases: fresh, status: fresh[0]?.key || f.status }));
+    setLevel(levelKey, { steps: fresh, current: fresh[0]?.key || '' });
   };
-  const openEditTpl = t => setTplModal({ id: t.id, name: t.name || '', description: t.description || '', is_default: Number(t.is_default) === 1, phases: (toPhases(t.phases) || []).map(p => ({ ...p })) });
+  const openEditTpl = t => setTplModal({ id: t.id, name: t.name || '', description: t.description || '', level: t.level || 'phase', is_default: Number(t.is_default) === 1, phases: (toPhases(t.phases) || []).map(p => ({ ...p })) });
   const handleSaveTpl = async () => {
     if (!tplModal?.name.trim()) return;
     const sw = sumWeights(tplModal.phases);
     if (sw !== 100 && !window.confirm(`La somme des poids est de ${sw}% (au lieu de 100%). Enregistrer quand même ?`)) return;
     setSavingTpl(true);
     try {
-      const updated = await workflowTemplatesApi.update(tplModal.id, { name: tplModal.name.trim(), description: tplModal.description, is_default: tplModal.is_default ? 1 : 0, phases: JSON.stringify(resetPhases(tplModal.phases)) });
-      /* Un seul modèle par défaut : les autres sont remis à 0 côté serveur */
-      setWfTemplates(ts => ts.map(x => x.id === tplModal.id ? updated : (tplModal.is_default ? { ...x, is_default: 0 } : x)));
+      const updated = await workflowTemplatesApi.update(tplModal.id, { name: tplModal.name.trim(), description: tplModal.description, level: tplModal.level, is_default: tplModal.is_default ? 1 : 0, phases: JSON.stringify(resetPhases(tplModal.phases)) });
+      /* Un seul modèle par défaut et par niveau : les autres sont remis à 0 côté serveur */
+      setWfTemplates(ts => ts.map(x => x.id === tplModal.id ? updated : (tplModal.is_default && (x.level || 'phase') === tplModal.level ? { ...x, is_default: 0 } : x)));
       setTplModal(null);
     } catch (e) { setError(e.message); }
     finally { setSavingTpl(false); }
@@ -367,7 +420,7 @@ export default function Portefeuille() {
     onToggle: () => toggleProg(prog.id),
     projs: projMap[prog.id] || [],
     loadingProj: !!loadingProj[prog.id],
-    perms, currency, progressMode, defaultPhases, closedStatuses,
+    perms, currency, progressMode, defaultPhases, closedStatuses, levels, defaultWorkflows, mainKey,
     onEditProg:   openEditProg,
     onDeleteProg: handleDeleteProg,
     onCreateProj: openCreateProj,
@@ -642,88 +695,52 @@ export default function Portefeuille() {
             </Select>
           </div>
 
-          <div>
-            <label style={lbl}>Statut du projet</label>
-            <Select value={projForm.status || ''} onChange={v => setProjForm(f => ({ ...f, status: v }))} style={{ width: '100%' }}>
-              <optgroup label="Phase en cours">
-                {(projForm.phases || []).map(ph => <option key={ph.key} value={ph.key}>{ph.label}</option>)}
-              </optgroup>
-              <optgroup label="Clôture">
-                {closedStatuses.map(c => <option key={c} value={c}>{ref.label('project_status', c)}</option>)}
-              </optgroup>
-              {projForm.status && !(projForm.phases || []).some(ph => ph.key === projForm.status) && !closedStatuses.includes(projForm.status) &&
-                <option value={projForm.status}>{projForm.status}</option>}
-            </Select>
-          </div>
-
-          {/* ── Workflow phases dynamique ── */}
-          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
-            <PhaseEditor phases={projForm.phases || []} status={projForm.status}
-              onChange={ps => setProjForm(f => ({ ...f, phases: ps }))}
-              onStatus={st => setProjForm(f => ({ ...f, status: st }))}
-              onPhasesAndStatus={(ps, st) => setProjForm(f => ({ ...f, phases: ps, status: st }))}>
-              {/* ── Templates : appliquer / enregistrer / modifier / supprimer ── */}
-              <div style={{ marginBottom: 12 }}>
-                {perms.tplCreate && (!showTplSave ? (
-                  <button onClick={() => { setShowTplSave(true); setTplNameInput(''); }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
-                      padding: '5px 12px', borderRadius: 6, border: `1px solid #10b98155`, background: 'rgba(16,185,129,0.12)',
-                      color: '#10b981', cursor: 'pointer' }}>
-                    <Plus size={11} /> Enregistrer comme template réutilisable
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <input value={tplNameInput} onChange={e => setTplNameInput(e.target.value)}
-                      placeholder="Nom du template (ex: Cycle standard)…" autoFocus
-                      onKeyDown={e => e.key === 'Enter' && !savingTpl && tplNameInput.trim() && document.getElementById('btn-save-tpl')?.click()}
-                      style={{ flex: 1, background: T.field, border: `1px solid ${T.border}`, borderRadius: 6, padding: '6px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none' }} />
-                    <button id="btn-save-tpl" disabled={savingTpl || !tplNameInput.trim()} onClick={async () => {
-                      if (!tplNameInput.trim()) return;
+          {/* ── Un workflow par niveau : préparation, phase, statut… ── */}
+          {levels.map(lv => {
+            const wf   = projForm.workflows?.[lv.key] || { current: '', steps: [] };
+            const cur  = wf.steps.find(s => s.key === wf.current);
+            const pool = wfTemplates.filter(t => (t.level || 'phase') === lv.key);
+            const isMain = lv.key === mainKey;
+            return (
+              <div key={lv.key} style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: T.text }}>{lv.label}</div>
+                  {isMain && <span style={{ fontFamily: 'DM Sans', fontSize: 10, color: T.textDim }}>niveau principal · calcule l'avancement du projet</span>}
+                  {cur && (
+                    <span style={{ marginLeft: 'auto', fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: cur.color || T.teal,
+                      background: alpha(cur.color || T.teal, 14), borderRadius: 5, padding: '2px 9px' }}>{cur.label}</span>
+                  )}
+                </div>
+                <PhaseEditor phases={wf.steps} status={wf.current} isMain={isMain}
+                  onChange={ps => setLevel(lv.key, { steps: ps })}
+                  onStatus={st => setLevel(lv.key, { current: st })}
+                  onPhasesAndStatus={(ps, st) => setLevel(lv.key, { steps: ps, current: st })}>
+                  <LevelTemplates
+                    level={lv} templates={pool} perms={perms} saving={savingTpl}
+                    nameOpen={showTplSave === lv.key} nameValue={tplNameInput}
+                    onNameOpen={() => { setShowTplSave(lv.key); setTplNameInput(''); }}
+                    onNameChange={setTplNameInput}
+                    onNameClose={() => setShowTplSave(null)}
+                    onApply={t => applyTemplate(t, lv.key)}
+                    onEdit={openEditTpl}
+                    onCreate={async name => {
                       setSavingTpl(true);
                       try {
-                        const created = await workflowTemplatesApi.create({ name: tplNameInput.trim(), phases: JSON.stringify(resetPhases(projForm.phases || [])) });
+                        const created = await workflowTemplatesApi.create({ name, level: lv.key, phases: JSON.stringify(resetPhases(wf.steps)) });
                         setWfTemplates(ts => [...ts, created]);
-                        setShowTplSave(false);
+                        setShowTplSave(null);
                       } catch (e2) { setError(e2.message); }
                       finally { setSavingTpl(false); }
-                    }} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#10b981', color: T.onAccent, fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans', cursor: savingTpl ? 'wait' : 'pointer', opacity: !tplNameInput.trim() ? 0.5 : 1 }}>
-                      {savingTpl ? '…' : 'Enregistrer'}
-                    </button>
-                    <button onClick={() => setShowTplSave(false)} style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
-                  </div>
-                ))}
-                {wfTemplates.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {wfTemplates.map(t => (
-                      <div key={t.id} title={t.description || ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 0, borderRadius: 6, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
-                        <button onClick={() => applyTemplate(t)} style={{ padding: '4px 10px', background: 'transparent', border: 'none', color: T.textMuted, fontSize: 11, fontFamily: 'DM Sans', cursor: 'pointer', fontWeight: 500 }}>
-                          📋 {t.name}{Number(t.is_default) === 1 ? ' ★' : ''}
-                        </button>
-                        {perms.tplUpdate && (
-                          <button onClick={() => openEditTpl(t)} title="Modifier le template"
-                            style={{ padding: '4px 6px', background: 'transparent', border: 'none', borderLeft: `1px solid ${T.border}`, color: T.textDim, cursor: 'pointer', lineHeight: 0 }}>
-                            <Pencil size={9} />
-                          </button>
-                        )}
-                        {perms.tplDelete && (
-                          <button onClick={async () => {
-                            if (!window.confirm(`Supprimer le template « ${t.name} » ?`)) return;
-                            try {
-                              await workflowTemplatesApi.delete(t.id);
-                              setWfTemplates(ts => ts.filter(x => x.id !== t.id));
-                            } catch (e2) { setError(e2.message); }
-                          }} style={{ padding: '4px 6px', background: 'transparent', border: 'none', borderLeft: `1px solid ${T.border}`, color: T.textDim, cursor: 'pointer', lineHeight: 0 }}
-                            onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color=T.textDim}>
-                            <Trash2 size={9} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                    }}
+                    onDelete={async t => {
+                      if (!window.confirm(`Supprimer le modèle « ${t.name} » ?`)) return;
+                      try { await workflowTemplatesApi.delete(t.id); setWfTemplates(ts => ts.filter(x => x.id !== t.id)); }
+                      catch (e2) { setError(e2.message); }
+                    }} />
+                </PhaseEditor>
               </div>
-            </PhaseEditor>
-          </div>
+            );
+          })}
         </div>
         <ModalFooter onCancel={() => setProjModal(false)} onConfirm={handleSaveProj} loading={savingProj}
           confirmLabel={editProj ? 'Mettre à jour' : 'Créer'}
@@ -742,12 +759,20 @@ export default function Portefeuille() {
               <label style={lbl}>Description</label>
               <Textarea value={tplModal.description} onChange={v => setTplModal(t => ({ ...t, description: v }))} rows={2} placeholder="Usage, cycle couvert…" />
             </div>
+            <div>
+              <label style={lbl}>Niveau</label>
+              <Select value={tplModal.level} onChange={v => setTplModal(t => ({ ...t, level: v }))} style={{ width: '100%' }}>
+                {levels.map(lv => <option key={lv.key} value={lv.key}>{lv.label}</option>)}
+                {!levels.some(lv => lv.key === tplModal.level) && <option value={tplModal.level}>{tplModal.level}</option>}
+              </Select>
+            </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted, cursor: 'pointer' }}>
               <input type="checkbox" checked={!!tplModal.is_default} onChange={e => setTplModal(t => ({ ...t, is_default: e.target.checked }))} />
-              Modèle par défaut <span style={{ fontSize: 11, color: T.textDim }}>(appliqué aux nouveaux projets)</span>
+              Modèle par défaut du niveau <span style={{ fontSize: 11, color: T.textDim }}>(appliqué aux nouveaux projets)</span>
             </label>
             <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
-              <PhaseEditor phases={tplModal.phases} onChange={ps => setTplModal(t => ({ ...t, phases: ps }))} />
+              <PhaseEditor phases={tplModal.phases} isMain={tplModal.level === mainKey}
+                onChange={ps => setTplModal(t => ({ ...t, phases: ps }))} />
             </div>
           </div>
         )}
@@ -839,8 +864,62 @@ export default function Portefeuille() {
   );
 }
 
-/* ── Éditeur de phases (projet : avec statut, avancement et dates ; template : structure seule) ── */
-function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, children }) {
+/* ── Modèles réutilisables d'un niveau : appliquer, enregistrer, modifier, supprimer ── */
+function LevelTemplates({ level, templates, perms, saving, nameOpen, nameValue, onNameOpen, onNameChange, onNameClose, onApply, onCreate, onEdit, onDelete }) {
+  const inputId = `tpl-name-${level.key}`;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      {perms.tplCreate && (!nameOpen ? (
+        <button onClick={onNameOpen}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600,
+            padding: '5px 12px', borderRadius: 6, border: `1px solid ${alpha(T.success, 33)}`, background: alpha(T.success, 12),
+            color: T.success, cursor: 'pointer' }}>
+          <Plus size={11} /> Enregistrer comme modèle « {level.label} »
+        </button>
+      ) : (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input value={nameValue} onChange={e => onNameChange(e.target.value)} autoFocus
+            placeholder={`Nom du modèle (ex : ${level.label} standard)…`}
+            onKeyDown={e => e.key === 'Enter' && !saving && nameValue.trim() && document.getElementById(inputId)?.click()}
+            style={{ flex: 1, background: T.field, border: `1px solid ${T.border}`, borderRadius: 6, padding: '6px 10px', color: T.text, fontSize: 12, fontFamily: 'DM Sans', outline: 'none' }} />
+          <button id={inputId} disabled={saving || !nameValue.trim()} onClick={() => nameValue.trim() && onCreate(nameValue.trim())}
+            style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: T.success, color: T.onAccent, fontSize: 11, fontWeight: 700, fontFamily: 'DM Sans', cursor: saving ? 'wait' : 'pointer', opacity: !nameValue.trim() ? 0.5 : 1 }}>
+            {saving ? '…' : 'Enregistrer'}
+          </button>
+          <button onClick={onNameClose} style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+        </div>
+      ))}
+      {templates.length > 0 && (
+        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {templates.map(t => (
+            <div key={t.id} title={t.description || ''} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 6, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
+              <button onClick={() => onApply(t)} style={{ padding: '4px 10px', background: 'transparent', border: 'none', color: T.textMuted, fontSize: 11, fontFamily: 'DM Sans', cursor: 'pointer', fontWeight: 500 }}>
+                {t.name}{Number(t.is_default) === 1 ? ' ★' : ''}
+              </button>
+              {perms.tplUpdate && (
+                <button onClick={() => onEdit(t)} title="Modifier le modèle"
+                  style={{ padding: '4px 6px', background: 'transparent', border: 'none', borderLeft: `1px solid ${T.border}`, color: T.textDim, cursor: 'pointer', lineHeight: 0 }}>
+                  <Pencil size={9} />
+                </button>
+              )}
+              {perms.tplDelete && (
+                <button onClick={() => onDelete(t)} title="Supprimer le modèle"
+                  style={{ padding: '4px 6px', background: 'transparent', border: 'none', borderLeft: `1px solid ${T.border}`, color: T.textDim, cursor: 'pointer', lineHeight: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.color = T.danger} onMouseLeave={e => e.currentTarget.style.color = T.textDim}>
+                  <Trash2 size={9} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Éditeur d'un niveau (projet : avec valeur courante, avancement et dates ; modèle : structure seule)
+ * isMain : seul le niveau principal calcule l'avancement du projet, donc seul lui exige 100 % de poids. */
+function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, isMain = true, children }) {
   const projectMode = !!onStatus;
   const [expanded, setExpanded] = useState({});
   const activeIdx = projectMode ? phases.findIndex(p => p.key === status) : -1;
@@ -884,17 +963,18 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 11, color: T.textDim, fontFamily: 'DM Sans', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Workflow</div>
-        <div style={{ fontSize: 11, fontFamily: 'DM Sans', fontWeight: 700, color: sumW === 100 ? '#10b981' : '#f59e0b' }}>
-          Σ {sumW}% {sumW !== 100 ? '⚠' : '✓'}
+        <div title={isMain ? 'Les poids de ce niveau calculent l\'avancement du projet' : 'Poids indicatifs : seul le niveau principal calcule l\'avancement'}
+          style={{ fontSize: 11, fontFamily: 'DM Sans', fontWeight: 700, color: sumW === 100 ? '#10b981' : (isMain ? '#f59e0b' : T.textDim) }}>
+          Σ {sumW}% {sumW === 100 ? '✓' : isMain ? '⚠' : ''}
         </div>
-        {projectMode && <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: '#06b6d4' }}>{global}% global</div>}
+        {projectMode && isMain && <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: '#06b6d4' }}>{global}% global</div>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
           <button onClick={addPhase} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: `1px solid ${T.border}`, background: 'transparent', color: T.textMuted, cursor: 'pointer' }}>
             <Plus size={11} /> Phase
           </button>
         </div>
       </div>
-      {sumW !== 100 && phases.length > 0 && (
+      {isMain && sumW !== 100 && phases.length > 0 && (
         <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#f59e0b', marginBottom: 10 }}>
           ⚠ La somme des poids doit être égale à 100 % (actuellement {sumW} %).
         </div>
@@ -991,7 +1071,9 @@ function PhaseEditor({ phases, status, onChange, onStatus, onPhasesAndStatus, ch
 }
 
 /* ── Carte Programme (style new_version) ── */
-function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency, progressMode, defaultPhases, closedStatuses = [], onEditProg, onDeleteProg, onCreateProj, onEditProj, onDeleteProj, onRDV }) {
+function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency, progressMode, defaultPhases, closedStatuses = [],
+  levels = LEVELS_FALLBACK, defaultWorkflows = {}, mainKey = 'phase',
+  onEditProg, onDeleteProg, onCreateProj, onEditProj, onDeleteProj, onRDV }) {
   const ref = useRefData();   // libellés des statuts de projet hors phases
   const pColor = prog.color || '#06b6d4';
   const hasProjProgress = prog.projects_progress != null;
@@ -1071,8 +1153,9 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
                 </div>
               : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {projs.map(proj => {
-                    const phases   = parsePhases(proj, defaultPhases);
-                    const phIdx    = phases.findIndex(p => p.key === proj.status);
+                    const workflows = parseWorkflows(proj, levels, defaultWorkflows);
+                    const phases   = workflows[mainKey]?.steps || parsePhases(proj, defaultPhases);
+                    const phIdx    = phases.findIndex(p => p.key === workflows[mainKey]?.current);
                     const activePh = phases[phIdx];
                     const closed   = closedStatuses.includes(proj.status);
                     const late     = !closed && isProjectLate(phases);
@@ -1129,7 +1212,11 @@ function ProgramCard({ prog, open, onToggle, projs, loadingProj, perms, currency
                             </div>
 
                             <div style={{ marginTop: 7, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                              <ProjBadge color={activePh?.color} label={stLabel} />
+                              {/* Une pastille par niveau : préparation, phase, statut… */}
+                              {levels.map(lv => {
+                                const st = currentStep(workflows, lv.key);
+                                return st ? <ProjBadge key={lv.key} color={st.color} label={st.label} title={lv.label} /> : null;
+                              })}
                               <div style={{ display: 'flex', gap: 2, marginLeft: 'auto' }}>
                                 <button onClick={e => onRDV(proj, e)} title="Rendez-vous"
                                   style={{ background: 'none', border: 'none', color: T.textDim, cursor: 'pointer', padding: '3px 4px', borderRadius: 4 }}
