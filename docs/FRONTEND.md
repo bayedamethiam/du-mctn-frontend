@@ -519,6 +519,45 @@ Points d'attention :
 - la 2FA n'est pas désactivable si le rôle figure dans `mfa_required_roles` ;
 - la session courante est repérée par le champ `current` renvoyé par `GET /auth/sessions` et ne peut pas être révoquée depuis cette liste.
 
+## 7 bis. Tailwind CSS, shadcn/ui et Motion (nouveaux écrans)
+
+Les nouveaux écrans (à commencer par le tableau des diligences) utilisent **Tailwind CSS 4**,
+des composants **shadcn/ui** (Radix) et **Motion** pour les animations. Les écrans existants gardent
+leurs styles en ligne : rien ne change pour eux.
+
+| Élément | Emplacement | Règle |
+|---|---|---|
+| Feuille Tailwind | `src/styles/tailwind.css` | sans remise à zéro globale (preflight) ; base minimale limitée à la classe `tw` |
+| Couleurs | `--background`, `--primary`… reliées aux variables du thème `--du-*` | le mode jour / nuit s'applique tout seul ; variante `dark:` = `[data-theme=dark]` |
+| Composants | `src/components/ui/` (button, badge, dropdown-menu, tooltip, toggle-group) | forme compatible React 18 (`forwardRef`) ; à générer avec la CLI shadcn après le passage à React 19 |
+| Alias | `@/…` = `src/…` (`vite.config.js`, `jsconfig.json`, `components.json`) | |
+| Fonctionnalités | `src/features/<domaine>/` | règles pures (ex. `board.js`) séparées de l'affichage |
+
+Points d'attention :
+
+- tout nouveau bloc Tailwind doit porter la classe `tw` (ou être à l'intérieur d'un élément qui la porte) ;
+  les contenus en portail (menus, infobulles) la portent déjà ;
+- la remise à zéro de `index.html` est dans la couche CSS `base` : hors couche, elle annulerait les
+  utilitaires d'espacement de Tailwind ;
+- une animation de liste avec `AnimatePresence mode="popLayout"` exige que l'élément enfant transmette
+  sa référence (`forwardRef`) ;
+- un élément en `position: fixed` (notifications) se rend dans `document.body` par un portail : un
+  parent transformé fausserait sa position ;
+- les animations respectent le réglage « réduire les animations » du système (`MotionConfig reducedMotion="user"`).
+
+### Tableau des diligences (`src/features/diligences/`)
+
+- **Colonnes** : « En retard » (calculée : échéance dépassée et statut non clôturé), puis une colonne
+  par statut du référentiel `diligence_status`, dans son ordre. Une diligence en retard n'apparaît que
+  dans « En retard ». Un statut absent du référentiel a sa propre colonne, pour ne rien masquer.
+- **Glisser-déposer** (dnd-kit) : déposer une carte sur une colonne change son statut (affiché tout de
+  suite, annulé si le serveur refuse, « Annuler » dans la notification). On ne dépose rien dans
+  « En retard ». Au clavier : Espace pour saisir et déposer, Entrée pour ouvrir. Droit requis :
+  `diligences.manage`.
+- **Colonnes repliables**, état mémorisé par navigateur (`du_diligences_colonnes_repliees`).
+- **Vue Liste** : l'ancien tableau, avec les diligences terminées masquées par défaut (filtre « Actives »).
+  Le choix de vue est mémorisé (`du_diligences_vue`).
+
 ## 8. Conventions de code du projet
 
 1. **Styles en ligne uniquement.** Pas de fichier CSS applicatif, pas de classes utilitaires. Les seules règles globales sont dans `index.html` (remise à zéro, animations, barre de défilement) et la feuille injectée une fois par `Select`.

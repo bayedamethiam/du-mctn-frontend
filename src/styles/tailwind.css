@@ -1,0 +1,97 @@
+/* Tailwind CSS 4 + jetons shadcn/ui, branchés sur le thème de l'application.
+ *
+ * La remise à zéro globale de Tailwind (preflight) n'est PAS importée : les pages existantes,
+ * écrites en styles en ligne, restent strictement identiques. Une base minimale s'applique
+ * uniquement à l'intérieur des éléments marqués de la classe `tw` (nouveaux composants). */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+/* Mode sombre : suit l'attribut data-theme posé sur <html> par ThemeContext */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Jetons shadcn/ui → variables du thème (--du-*, définies dans src/theme.js) :
+ * les composants suivent automatiquement le mode jour et le mode nuit. */
+:root {
+  --radius: 0.75rem;
+  --background: var(--du-bg);
+  --foreground: var(--du-text);
+  --card: var(--du-panel);
+  --card-foreground: var(--du-text);
+  --popover: var(--du-menu-bg);
+  --popover-foreground: var(--du-text);
+  --primary: var(--du-teal);
+  --primary-foreground: var(--du-on-accent);
+  --secondary: var(--du-surface2);
+  --secondary-foreground: var(--du-text);
+  --muted: var(--du-surface2);
+  --muted-foreground: var(--du-text-muted);
+  --accent: var(--du-surface2);
+  --accent-foreground: var(--du-text);
+  --destructive: var(--du-danger);
+  --border: var(--du-border);
+  --input: var(--du-border);
+  --ring: var(--du-teal);
+}
+
+@theme inline {
+  --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'EB Garamond', ui-serif, Georgia, serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Couleurs propres à l'application */
+  --color-du-teal: var(--du-teal);
+  --color-du-success: var(--du-success);
+  --color-du-warning: var(--du-warning);
+  --color-du-danger: var(--du-danger);
+  --color-du-purple: var(--du-purple);
+  --color-du-text: var(--du-text);
+  --color-du-text-muted: var(--du-text-muted);
+  --color-du-text-dim: var(--du-text-dim);
+  --color-du-surface: var(--du-surface);
+  --color-du-surface2: var(--du-surface2);
+  --color-du-panel: var(--du-panel);
+  --color-du-field: var(--du-field);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+/* Base minimale, limitée aux nouveaux composants (classe `tw`) */
+@layer base {
+  .tw, .tw *, .tw *::before, .tw *::after { border-width: 0; border-style: solid; border-color: var(--border); }
+  .tw button, .tw [role="button"] { background: transparent; font: inherit; color: inherit; cursor: pointer; }
+  .tw button:disabled { cursor: default; }
+  .tw input, .tw textarea, .tw select { font: inherit; color: inherit; background: transparent; }
+  .tw h1, .tw h2, .tw h3, .tw h4 { font-size: inherit; font-weight: inherit; }
+  .tw ul, .tw ol { list-style: none; }
+  .tw { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+}
+
+/* Barre de défilement horizontale discrète du tableau */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--du-text) 25%, transparent) transparent;
+}
