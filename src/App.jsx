@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import Layout from './components/Layout.jsx';
 import Dashboard    from './pages/Dashboard.jsx';
 import Portefeuille from './pages/Portefeuille.jsx';
-import Diligences   from './pages/Diligences.jsx';
+// Chargée à la demande : Motion, Radix et dnd-kit ne pèsent que sur cette page
+const Diligences    = lazy(() => import('./pages/Diligences.jsx'));
 import Partenariats from './pages/Partenariats.jsx';
 import Audiences    from './pages/Audiences.jsx';
 import SuiviEval    from './pages/SuiviEval.jsx';
@@ -52,7 +53,9 @@ export default function App() {
   const V = (view === 'admin' && !hasPerm(user, ...ADMIN_PERMS)) ? Dashboard : (VIEWS[view] || Dashboard);
   return (
     <Layout view={view} setView={setView} alerts={alerts}>
-      <V />
+      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size={36} /></div>}>
+        <V />
+      </Suspense>
       {user.must_change_password
         ? <AccountModal open forced="password" onClose={() => window.location.reload()} />
         : user.mfa_setup_required
