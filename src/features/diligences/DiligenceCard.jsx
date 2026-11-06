@@ -1,7 +1,7 @@
 import { forwardRef, memo, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { useDraggable } from '@dnd-kit/core';
-import { AlignLeft, ArrowRightLeft, CalendarDays, CheckCircle2, Flame, Landmark, MoreHorizontal, Pencil, Trash2, XCircle } from 'lucide-react';
+import { AlignLeft, ArrowRightLeft, CalendarDays, CheckCircle2, CheckSquare, Flame, Landmark, MoreHorizontal, Pencil, Trash2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
   DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { avatarColor, deadlineInfo, initials, memberFor } from './board.js';
+import { notesSummary } from './actions.js';
 
 const TONE = {
   danger: 'bg-du-danger/12 text-du-danger ring-du-danger/25',
@@ -34,6 +35,8 @@ function DiligenceCardView({ d, ctx, inLateColumn = false, overlay = false, drag
   const member = memberFor(team, d.responsible);
   const who = member?.name || d.responsible;
   const statusColor = ref.color('diligence_status', d.status, 'var(--du-text-muted)');
+  const notes = notesSummary(d.notes);   // description libre + avancement des actions
+  const actionsDone = notes.total > 0 && notes.done === notes.total;
 
   return (
     <div
@@ -87,14 +90,30 @@ function DiligenceCardView({ d, ctx, inLateColumn = false, overlay = false, drag
             <TooltipContent>Échéance : {deadline.full}</TooltipContent>
           </Tooltip>
         )}
-        {d.notes && (
+        {notes.text && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="inline-flex size-6 items-center justify-center rounded-md text-du-text-dim hover:bg-du-surface2" aria-label="Notes">
+              <span className="inline-flex size-6 items-center justify-center rounded-md text-du-text-dim hover:bg-du-surface2" aria-label="Description">
                 <AlignLeft className="size-3.5" />
               </span>
             </TooltipTrigger>
-            <TooltipContent className="whitespace-pre-line">{d.notes}</TooltipContent>
+            <TooltipContent className="max-w-72 whitespace-pre-line">{notes.text}</TooltipContent>
+          </Tooltip>
+        )}
+        {notes.total > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn('inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold tabular-nums',
+                actionsDone ? 'bg-du-success text-white' : 'text-du-text-dim hover:bg-du-surface2')} aria-label={`Actions : ${notes.done} sur ${notes.total}`}>
+                <CheckSquare className="size-3.5" /> {notes.done}/{notes.total}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-72">
+              {notes.actions.slice(0, 8).map(a => (
+                <span key={a.id} className={cn('block', a.done && 'line-through opacity-70')}>{a.done ? '✓' : '○'} {a.label}</span>
+              ))}
+              {notes.total > 8 && <span className="block opacity-70">… et {notes.total - 8} autre{notes.total - 8 > 1 ? 's' : ''}</span>}
+            </TooltipContent>
           </Tooltip>
         )}
         {inLateColumn && <Badge color={statusColor}>{ref.label('diligence_status', d.status)}</Badge>}

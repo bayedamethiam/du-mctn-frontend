@@ -1,6 +1,7 @@
 import { Edit2, Trash2 } from 'lucide-react';
 import { Card, Badge, Btn, EmptyState } from '../../components/UI.jsx';
 import { T, alpha } from '../../theme.js';
+import { notesSummary } from './actions.js';
 
 /* Vue « Liste » : le tableau historique de la page, déplacé tel quel (styles en ligne d'origine).
  * `refData` : référentiels (le nom `ref` est réservé par React pour les props). */
@@ -21,6 +22,7 @@ export function DiligenceTable({ rows, refData: ref, isLate, search, canEdit, ca
             : rows.map(d => {
               const next = nextStatus(d);
               const late = isLate(d);
+              const notes = notesSummary(d.notes);
               return (
                 <tr key={d.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = T.surface2}
@@ -28,7 +30,13 @@ export function DiligenceTable({ rows, refData: ref, isLate, search, canEdit, ca
                   <td style={{ padding: '13px 16px' }}>
                     <div style={{ fontFamily: 'DM Sans', fontSize: 13, fontWeight: 500, color: T.text }}>{d.title}</div>
                     <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textDim, marginTop: 2 }}>{ref.label('diligence_type', d.type)}</div>
-                    {d.notes && <div title={d.notes} style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textMuted, marginTop: 4, maxWidth: 360, whiteSpace: 'pre-line', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>📝 {d.notes}</div>}
+                    {notes.text && <div title={notes.text} style={{ fontFamily: 'DM Sans', fontSize: 11, color: T.textMuted, marginTop: 4, maxWidth: 360, whiteSpace: 'pre-line', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>📝 {notes.text}</div>}
+                    {notes.total > 0 && (
+                      <div title={notes.actions.map(x => `${x.done ? '✓' : '○'} ${x.label}`).join('\n')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: notes.done === notes.total ? T.success : T.textMuted }}>
+                        ☑ {notes.done}/{notes.total} actions
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '13px 16px', fontFamily: 'DM Sans', fontSize: 12, color: T.textMuted }}>{d.source}</td>
                   <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
