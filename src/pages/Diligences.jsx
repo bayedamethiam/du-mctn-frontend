@@ -14,6 +14,7 @@ import { hasPerm } from '../permissions.js';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DiligenceBoard } from '../features/diligences/DiligenceBoard.jsx';
 import { DiligenceTable } from '../features/diligences/DiligenceTable.jsx';
@@ -38,6 +39,7 @@ export default function Diligences() {
   const [priorities, setPriorityFilter] = useState([]);   // codes de priorité retenus (vide = toutes)
   const [listFilter, setListFilter] = useState('active');   // vue liste : terminées masquées par défaut
   const [showModal, setShowModal] = useState(false);
+  const [toDelete, setToDelete] = useState({ d: null, open: false });   // diligence à supprimer (gardée pendant l'animation de fermeture)
   const [dialog, setDialog]     = useState(null);   // { key, initial, diligence } : fiche ouverte (clé nouvelle à chaque ouverture)
   const canDelete = hasPerm(user, 'diligences.delete');
   const canEdit   = hasPerm(user, 'diligences.manage');
@@ -128,14 +130,16 @@ export default function Diligences() {
     }
   }, [ref, today, closedCodes]);
 
-  const remove = useCallback(async d => {
-    if (!window.confirm(`Supprimer la diligence « ${d.title} » ?`)) return;
+  /* Suppression : demande de confirmation (fenêtre de l'application, pas window.confirm), puis appel à l'API */
+  const remove = useCallback(d => setToDelete({ d, open: true }), []);
+  const confirmRemove = async () => {
+    const d = toDelete.d;
     try {
       await diligencesApi.delete(d.id);
       setItems(prev => prev.filter(i => i.id !== d.id));
       toast.success('Diligence supprimée', { description: d.title });
     } catch (e) { toast.error('Suppression impossible', { description: e.message }); }
-  }, []);
+  };
 
   /* Bascule rapide de la vue liste : non terminé → premier statut « done » ; terminé → dernier statut ouvert */
   const nextStatus = d => {
@@ -235,6 +239,10 @@ export default function Diligences() {
                 types: withCurrent(types, dialog.initial.type),
               }} />
           )}
+
+          <ConfirmDialog open={toDelete.open} onOpenChange={open => setToDelete(t => ({ ...t, open }))}
+            title="Supprimer la diligence ?" confirmLabel="Supprimer" onConfirm={confirmRemove}
+            description={<>« <span className="font-semibold text-du-text">{toDelete.d?.title}</span> » sera supprimée définitivement, avec sa description et ses actions.</>} />
 
           {/* Portail vers <body> : un parent transformé fausserait la position fixe des notifications */}
           {createPortal(<Toaster theme={isDark ? 'dark' : 'light'} position="bottom-right" richColors closeButton toastOptions={{ style: { fontFamily: 'DM Sans' } }} />, document.body)}

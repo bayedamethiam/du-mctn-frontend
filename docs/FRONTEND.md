@@ -529,7 +529,7 @@ leurs styles en ligne : rien ne change pour eux.
 |---|---|---|
 | Feuille Tailwind | `src/styles/tailwind.css` | sans remise à zéro globale (preflight) ; base minimale limitée à la classe `tw` |
 | Couleurs | `--background`, `--primary`… reliées aux variables du thème `--du-*` | le mode jour / nuit s'applique tout seul ; variante `dark:` = `[data-theme=dark]` |
-| Composants | `src/components/ui/` (button, badge, dropdown-menu, tooltip, toggle-group, popover, checkbox, command, calendar, date-picker) | forme compatible React 18 (`forwardRef`) ; à générer avec la CLI shadcn après le passage à React 19 |
+| Composants | `src/components/ui/` (button, badge, dropdown-menu, tooltip, toggle-group, popover, checkbox, command, calendar, date-picker, confirm-dialog) | forme compatible React 18 (`forwardRef`) ; à générer avec la CLI shadcn après le passage à React 19 |
 | Alias | `@/…` = `src/…` (`vite.config.js`, `jsconfig.json`, `components.json`) | |
 | Fonctionnalités | `src/features/<domaine>/` | règles pures (ex. `board.js`) séparées de l'affichage |
 
@@ -544,6 +544,10 @@ Points d'attention :
 - un élément en `position: fixed` (notifications) se rend dans `document.body` par un portail : un
   parent transformé fausserait sa position ;
 - les animations respectent le réglage « réduire les animations » du système (`MotionConfig reducedMotion="user"`).
+- pas de `window.confirm` dans les nouveaux écrans : le navigateur intégré de l'application Claude (et
+  d'autres navigateurs intégrés) bloque les fenêtres natives, qui répondent « non » sans rien afficher.
+  Utiliser `ConfirmDialog` (`src/components/ui/confirm-dialog.jsx`). Les anciens écrans en contiennent
+  encore une vingtaine (Portefeuille, Administration, SuiviEval…), à remplacer lors de la refonte.
 
 ### Tableau des diligences (`src/features/diligences/`)
 
