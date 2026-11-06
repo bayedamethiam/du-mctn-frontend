@@ -95,3 +95,22 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--du-text) 25%, transparent) transparent;
 }
+
+/* Calendrier (react-day-picker) : glissement des semaines au changement de mois.
+ * Les classes rdp-* sont posées par la bibliothèque pendant l'animation. */
+@keyframes rdp-slide-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes rdp-slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes rdp-slide-out-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes rdp-slide-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes rdp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rdp-fade-out { from { opacity: 1; } to { opacity: 0; } }
+.rdp-weeks_before_enter { animation: rdp-slide-in-left 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.rdp-weeks_before_exit { animation: rdp-slide-out-left 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.rdp-weeks_after_enter { animation: rdp-slide-in-right 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.rdp-weeks_after_exit { animation: rdp-slide-out-right 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.rdp-caption_before_enter, .rdp-caption_after_enter { animation: rdp-fade-in 0.28s ease forwards; }
+.rdp-caption_before_exit, .rdp-caption_after_exit { animation: rdp-fade-out 0.28s ease forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .rdp-weeks_before_enter, .rdp-weeks_before_exit, .rdp-weeks_after_enter, .rdp-weeks_after_exit,
+  .rdp-caption_before_enter, .rdp-caption_after_enter, .rdp-caption_before_exit, .rdp-caption_after_exit { animation-duration: 1ms; }
+}

@@ -529,7 +529,7 @@ leurs styles en ligne : rien ne change pour eux.
 |---|---|---|
 | Feuille Tailwind | `src/styles/tailwind.css` | sans remise à zéro globale (preflight) ; base minimale limitée à la classe `tw` |
 | Couleurs | `--background`, `--primary`… reliées aux variables du thème `--du-*` | le mode jour / nuit s'applique tout seul ; variante `dark:` = `[data-theme=dark]` |
-| Composants | `src/components/ui/` (button, badge, dropdown-menu, tooltip, toggle-group) | forme compatible React 18 (`forwardRef`) ; à générer avec la CLI shadcn après le passage à React 19 |
+| Composants | `src/components/ui/` (button, badge, dropdown-menu, tooltip, toggle-group, popover, checkbox, command, calendar, date-picker) | forme compatible React 18 (`forwardRef`) ; à générer avec la CLI shadcn après le passage à React 19 |
 | Alias | `@/…` = `src/…` (`vite.config.js`, `jsconfig.json`, `components.json`) | |
 | Fonctionnalités | `src/features/<domaine>/` | règles pures (ex. `board.js`) séparées de l'affichage |
 
@@ -557,6 +557,39 @@ Points d'attention :
 - **Colonnes repliables**, état mémorisé par navigateur (`du_diligences_colonnes_repliees`).
 - **Vue Liste** : l'ancien tableau, avec les diligences terminées masquées par défaut (filtre « Actives »).
   Le choix de vue est mémorisé (`du_diligences_vue`).
+
+### Fiche d'une diligence (création et modification)
+
+Fiche façon carte Trello (`DiligenceDialog.jsx`, sélecteurs dans `DiligenceFields.jsx`) :
+
+- **Statut** en pastille colorée en haut à gauche ; le **rond devant le titre** marque la diligence
+  comme faite (premier statut `done` du référentiel) et un second clic revient au statut précédent.
+- **Source** et **responsable** : liste filtrable au clavier (cmdk), avec « Utiliser « … » » pour une
+  valeur nouvelle ; les membres de l'équipe s'affichent avec leurs initiales et leur couleur.
+- **Échéance** : calendrier shadcn (react-day-picker, en français, semaine du lundi) et raccourcis
+  (aujourd'hui, demain, lundi prochain…) ; l'avance ou le retard s'affiche à côté de la date.
+- **Priorité** en boutons côte à côte (un clic), **type** en étiquettes colorées.
+- **Actions** (sous-tâches) façon liste de contrôle Trello (`ActionChecklist.jsx`) : barre
+  d'avancement, case à cocher (le libellé est barré), modification au clic, réorganisation par la
+  poignée, « Masquer les actions cochées », ajout en chaîne (Entrée).
+- Erreurs (champs obligatoires, refus du serveur) affichées dans la fiche, qui reste ouverte ;
+  confirmation dans la fiche (pas de `window.confirm`, bloqué par certains navigateurs intégrés)
+  avant de fermer une fiche modifiée ; Ctrl + Entrée pour enregistrer.
+
+**Stockage des actions, sans changement de l'API** : l'API n'a pas encore de table des actions. Elles
+sont rangées dans le champ `notes`, en cases à cocher Markdown, après la description :
+
+```
+Réunion préparatoire avec les parties prenantes.
+
+- [x] Envoyer la convocation
+- [ ] Préparer la note de cadrage
+```
+
+Les règles de lecture et d'écriture sont dans `actions.js` (fonctions pures). Toute ligne
+« - [ ] … » ou « - [x] … » des notes est une action. Les cartes et la vue Liste affichent l'avancement
+(« 2/5 ») et la description sans ces lignes. Le jour où le backend aura une vraie table des actions,
+ce format se convertira sans perte.
 
 ## 8. Conventions de code du projet
 

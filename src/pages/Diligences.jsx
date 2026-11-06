@@ -5,7 +5,7 @@ import { Toaster, toast } from 'sonner';
 import { Filter, KanbanSquare, List, Plus, Search, X } from 'lucide-react';
 import { diligencesApi, teamApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
-import { Input, Select, Spinner, ErrorBanner, Modal, ModalFooter, Textarea } from '../components/UI.jsx';
+import { Input, Spinner, ErrorBanner } from '../components/UI.jsx';
 import { T } from '../theme.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRefData } from '../context/RefContext.jsx';
@@ -17,11 +17,12 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DiligenceBoard } from '../features/diligences/DiligenceBoard.jsx';
 import { DiligenceTable } from '../features/diligences/DiligenceTable.jsx';
+import { DiligenceDialog } from '../features/diligences/DiligenceDialog.jsx';
 import { buildColumns, isLate as isLateRule, matchesSearch, todayYmd } from '../features/diligences/board.js';
 
 const EMPTY = { title: '', source: '', deadline: '', responsible: '', priority: '', type: '', status: '', notes: '' };
 const VIEW_KEY = 'du_diligences_vue';
-const fieldStyle = { width: '100%', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 14px', color: T.text, fontSize: 13, fontFamily: 'DM Sans', outline: 'none' };
+let dialogSeq = 0;
 const readView = () => { try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'board'; } catch { return 'board'; } };
 
 export default function Diligences() {
@@ -31,15 +32,13 @@ export default function Diligences() {
   const [items, setItems]       = useState([]);
   const [team, setTeam]         = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
   const [search, setSearch]     = useState('');
   const [view, setView]         = useState(readView);
   const [priorities, setPriorityFilter] = useState([]);   // codes de priorité retenus (vide = toutes)
   const [listFilter, setListFilter] = useState('active');   // vue liste : terminées masquées par défaut
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm]         = useState(EMPTY);
-  const [editId, setEditId]     = useState(null);
+  const [dialog, setDialog]     = useState(null);   // { key, initial, diligence } : fiche ouverte (clé nouvelle à chaque ouverture)
   const canDelete = hasPerm(user, 'diligences.delete');
   const canEdit   = hasPerm(user, 'diligences.manage');
 
@@ -80,37 +79,33 @@ export default function Diligences() {
   /* Sources existantes triées par fréquence (suggestions + sous-titre) */
   const sourceCounts = items.reduce((m, d) => { const s = (d.source || '').trim(); if (s) m[s] = (m[s] || 0) + 1; return m; }, {});
   const sources      = Object.keys(sourceCounts).sort((a, b) => sourceCounts[b] - sourceCounts[a]);
-  const teamNames    = [...new Set(team.map(m => m.name).filter(Boolean))];
   const subtitle     = sources.length ? `${sources.slice(0, 3).join(' · ')} · Traçabilité complète` : 'Traçabilité complète des instructions et demandes';
 
   const openCreate = (status = null) => {
     /* Priorité par défaut : première non critique / non haute du référentiel */
     const defPriority = priorityList.find(p => !ref.has('priority', p.code, 'critical') && !ref.has('priority', p.code, 'high')) || priorityList[0];
-    setForm({ ...EMPTY, status: status || statuses[0]?.code || '', type: types[0]?.code || '', priority: defPriority?.code || '' });
-    setEditId(null); setShowModal(true);
+    const initial = { ...EMPTY, status: String(status || statuses[0]?.code || ''), type: String(types[0]?.code || ''), priority: String(defPriority?.code || '') };
+    setDialog({ key: ++dialogSeq, initial, diligence: null }); setShowModal(true);
   };
   const openEdit = useCallback(d => {
     if (!canEdit) return;
-    setForm({ title: d.title, source: d.source, deadline: d.deadline || '', responsible: d.responsible || '', priority: d.priority || priorityList[0]?.code || '', type: d.type || '', status: d.status, notes: d.notes || '' });
-    setEditId(d.id); setShowModal(true);
+    const initial = { title: d.title || '', source: d.source || '', deadline: d.deadline || '', responsible: d.responsible || '', priority: String(d.priority || priorityList[0]?.code || ''), type: String(d.type || ''), status: String(d.status || ''), notes: d.notes || '' };
+    setDialog({ key: ++dialogSeq, initial, diligence: d }); setShowModal(true);
   }, [canEdit, priorityList]);
 
-  const save = async () => {
-    if (!form.title || !form.source) { setError('Titre et source requis'); return; }
-    setSaving(true);
-    try {
-      if (editId) {
-        const u = await diligencesApi.update(editId, form);
-        setItems(prev => prev.map(d => d.id === editId ? u : d));
-        toast.success('Diligence enregistrée');
-      } else {
-        const n = await diligencesApi.create(form);
-        setItems(prev => [n, ...prev]);
-        toast.success('Diligence créée', { description: n.title });
-      }
-      setShowModal(false);
-    } catch (e) { setError(e.message); }
-    finally { setSaving(false); }
+  /* Enregistrement depuis la fiche : une erreur est renvoyée à la fiche, qui l'affiche et reste ouverte */
+  const save = async values => {
+    const editId = dialog?.diligence?.id;
+    if (editId) {
+      const u = await diligencesApi.update(editId, values);
+      setItems(prev => prev.map(d => d.id === editId ? u : d));
+      toast.success('Diligence enregistrée', { description: u.title });
+    } else {
+      const n = await diligencesApi.create(values);
+      setItems(prev => [n, ...prev]);
+      toast.success('Diligence créée', { description: n.title });
+    }
+    setShowModal(false);
   };
 
   /* Changement de statut (glisser-déposer, menu, bascule de la liste) : affiché tout de suite,
@@ -231,33 +226,15 @@ export default function Diligences() {
                 )}
           </div>
 
-          <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? 'Modifier la diligence' : 'Nouvelle diligence'} width={540}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <Input placeholder="Intitulé de la diligence *" value={form.title} onChange={v => setForm(f => ({ ...f, title: v }))} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <input list="dil-sources" placeholder="Source *" value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} style={fieldStyle} />
-                <input list="dil-team" placeholder="Responsable" value={form.responsible} onChange={e => setForm(f => ({ ...f, responsible: e.target.value }))} style={fieldStyle} />
-                <datalist id="dil-sources">{sources.map(s => <option key={s} value={s} />)}</datalist>
-                <datalist id="dil-team">{teamNames.map(n => <option key={n} value={n} />)}</datalist>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <input type="date" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} style={{ ...fieldStyle, padding: '10px 12px' }} />
-                <Select value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}>
-                  {withCurrent(statuses, form.status).map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
-                </Select>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Select value={form.priority} onChange={v => setForm(f => ({ ...f, priority: v }))}>
-                  {withCurrent(priorityList, form.priority).map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
-                </Select>
-                <Select value={form.type} onChange={v => setForm(f => ({ ...f, type: v }))}>
-                  {withCurrent(types, form.type).map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
-                </Select>
-              </div>
-              <Textarea placeholder="Notes, suites données, commentaires…" value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} rows={3} />
-            </div>
-            <ModalFooter onCancel={() => setShowModal(false)} onConfirm={save} loading={saving} confirmLabel={editId ? 'Enregistrer' : 'Créer'} />
-          </Modal>
+          {dialog && (
+            <DiligenceDialog key={dialog.key} open={showModal} onClose={() => setShowModal(false)} onSubmit={save}
+              initial={dialog.initial} diligence={dialog.diligence} refData={ref} team={team} sources={sources} today={today} alertDays={alertDays}
+              options={{
+                statuses: withCurrent(statuses, dialog.initial.status),
+                priorities: withCurrent(priorityList, dialog.initial.priority),
+                types: withCurrent(types, dialog.initial.type),
+              }} />
+          )}
 
           {/* Portail vers <body> : un parent transformé fausserait la position fixe des notifications */}
           {createPortal(<Toaster theme={isDark ? 'dark' : 'light'} position="bottom-right" richColors closeButton toastOptions={{ style: { fontFamily: 'DM Sans' } }} />, document.body)}
