@@ -156,6 +156,17 @@ export const diligencesApi = {
   delete:       id       => api.delete(`/diligences/${id}`),
 };
 
+// Actions (sous-tâches) des diligences : servies par le module directives du backend quand il
+// est activé, sinon 404 (les actions restent alors dans les notes : voir features/diligences/actionsSync.js)
+export const diligenceActionsApi = {
+  listAll: ()                      => api.get('/diligence-actions'),
+  list:    id                      => api.get(`/diligences/${id}/actions`),
+  add:     (id, label)             => api.post(`/diligences/${id}/actions`, { label }),
+  update:  (id, actionId, changes) => api.put(`/diligences/${id}/actions/${actionId}`, changes),
+  remove:  (id, actionId)          => api.delete(`/diligences/${id}/actions/${actionId}`),
+  reorder: (id, ids)               => api.put(`/diligences/${id}/actions`, { ids }),
+};
+
 // Partnerships
 export const partnershipsApi = {
   list:        ()             => api.get('/partnerships'),
@@ -186,6 +197,9 @@ export const seApi = {
   createIndicator: d           => api.post('/se/indicators', d),
   deleteIndicator: id          => api.delete(`/se/indicators/${id}`),
   setMilestones:   (id, list)  => api.put(`/se/indicators/${id}/milestones`, { milestones: list }),
+  // Avancement saisi à la main : module monitoring-evaluation du backend (404 s'il n'est pas activé)
+  indicatorProgress:    ()        => api.get('/se/indicator-progress'),
+  setIndicatorProgress: (id, v)   => api.put(`/se/indicators/${id}/progress`, { manual_progress: v }),
   revues:          type        => api.get(`/se/revues${type ? '?type=' + type : ''}`),
   createRevue:     d           => api.post('/se/revues', d),
   updateRevue:     (id, d)     => api.put(`/se/revues/${id}`, d),
