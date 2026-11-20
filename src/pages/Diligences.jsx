@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { MotionConfig, motion } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import { Filter, KanbanSquare, List, Plus, Search, X } from 'lucide-react';
-import { diligencesApi, teamApi } from '../api.js';
+import { diligenceActionsApi, diligencesApi, teamApi } from '../api.js';
 import HeroBanner from '../components/HeroBanner.jsx';
 import { Input, Spinner, ErrorBanner } from '../components/UI.jsx';
 import { T } from '../theme.js';
@@ -20,6 +20,8 @@ import { DiligenceBoard } from '../features/diligences/DiligenceBoard.jsx';
 import { DiligenceTable } from '../features/diligences/DiligenceTable.jsx';
 import { DiligenceDialog } from '../features/diligences/DiligenceDialog.jsx';
 import { buildColumns, isLate as isLateRule, matchesSearch, todayYmd } from '../features/diligences/board.js';
+import { parseNotes } from '../features/diligences/actions.js';
+import { groupByDiligence, syncActions, withActions } from '../features/diligences/actionsSync.js';
 
 const EMPTY = { title: '', source: '', deadline: '', responsible: '', priority: '', type: '', status: '', notes: '' };
 const VIEW_KEY = 'du_diligences_vue';
@@ -31,6 +33,9 @@ export default function Diligences() {
   const ref = useRefData();
   const { isDark } = useTheme();
   const [items, setItems]       = useState([]);
+  /* Actions par diligence quand l'API les sert (module directives du backend) ; null : l'API ne
+   * les connaît pas, elles restent dans les notes (fonctionnement d'origine) */
+  const [actionsBy, setActionsBy] = useState(null);
   const [team, setTeam]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -53,7 +58,13 @@ export default function Diligences() {
   const isLate       = useCallback(d => isLateRule(d, today, closedCodes), [today, closedCodes]);
 
   const load = useCallback(() => {
-    diligencesApi.list().then(setItems).catch(e => setError(e.message)).finally(() => setLoading(false));
+    // Les actions d'abord : leur lecture reprend côté serveur celles encore écrites dans les notes,
+    // les diligences lues ensuite ont donc déjà des notes à jour
+    diligenceActionsApi.listAll()
+      .then(all => setActionsBy(groupByDiligence(all)))
+      .catch(() => setActionsBy(null))   // 404 : module non activé, actions dans les notes
+      .then(() => diligencesApi.list())
+      .then(setItems).catch(e => setError(e.message)).finally(() => setLoading(false));
     teamApi.list().then(t => setTeam(Array.isArray(t) ? t : [])).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -64,10 +75,13 @@ export default function Diligences() {
     try { localStorage.setItem(VIEW_KEY, v); } catch { /* stockage indisponible */ }
   };
 
+  /* Diligences telles que la fiche et les cartes les attendent (notes avec leurs actions) */
+  const shown = useMemo(() => actionsBy ? items.map(d => withActions(d, actionsBy.get(d.id))) : items, [items, actionsBy]);
+
   /* Filtres communs aux deux vues : recherche et priorités */
-  const visible = useMemo(() => items.filter(d =>
+  const visible = useMemo(() => shown.filter(d =>
     matchesSearch(d, search, ref.label('diligence_type', d.type))
-    && (priorities.length === 0 || priorities.includes(String(d.priority)))), [items, search, priorities, ref]);
+    && (priorities.length === 0 || priorities.includes(String(d.priority)))), [shown, search, priorities, ref]);
 
   const columns = useMemo(() => buildColumns({ items: visible, statuses, closedCodes, today, lateColor: 'var(--du-danger)' }),
     [visible, statuses, closedCodes, today]);
@@ -98,15 +112,24 @@ export default function Diligences() {
   /* Enregistrement depuis la fiche : une erreur est renvoyée à la fiche, qui l'affiche et reste ouverte */
   const save = async values => {
     const editId = dialog?.diligence?.id;
-    if (editId) {
-      const u = await diligencesApi.update(editId, values);
-      setItems(prev => prev.map(d => d.id === editId ? u : d));
-      toast.success('Diligence enregistrée', { description: u.title });
-    } else {
-      const n = await diligencesApi.create(values);
-      setItems(prev => [n, ...prev]);
-      toast.success('Diligence créée', { description: n.title });
+    // Avec l'API des actions : la diligence garde le seul texte libre, les actions vont à l'API
+    const split = actionsBy ? parseNotes(values.notes) : null;
+    const payload = split ? { ...values, notes: split.text } : values;
+    const saved = editId ? await diligencesApi.update(editId, payload) : await diligencesApi.create(payload);
+    setItems(prev => editId ? prev.map(d => d.id === editId ? saved : d) : [saved, ...prev]);
+    if (split) {
+      try {
+        const final = await syncActions(diligenceActionsApi, saved.id, actionsBy.get(saved.id) || [], split.actions);
+        setActionsBy(prev => new Map(prev).set(saved.id, final));
+      } catch (e) {
+        // Diligence enregistrée, actions en partie : on affiche l'état réel et on le signale
+        const real = await diligenceActionsApi.list(saved.id).catch(() => null);
+        if (real) setActionsBy(prev => new Map(prev).set(saved.id, real));
+        if (!editId) setDialog(dlg => dlg && { ...dlg, diligence: saved });   // un nouvel essai modifie, ne recrée pas
+        throw new Error(`Diligence enregistrée, mais les actions ne l'ont pas été entièrement : ${e.message}`);
+      }
     }
+    toast.success(editId ? 'Diligence enregistrée' : 'Diligence créée', { description: saved.title });
     setShowModal(false);
   };
 
