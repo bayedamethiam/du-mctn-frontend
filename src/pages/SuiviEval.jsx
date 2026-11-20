@@ -11,8 +11,14 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { hasPerm } from '../permissions.js';
 
 /* ── helpers ───────────────────────────────────────────────── */
-/* Progression vers la cible ; direction 'desc' = plus bas est mieux */
+/* Avancement saisi à la main (module monitoring-evaluation du backend) : remplace le calcul */
+const manualPct = i => (i.manual_progress === null || i.manual_progress === undefined || i.manual_progress === '' ? null : Number(i.manual_progress));
+
+/* Progression vers la cible ; direction 'desc' = plus bas est mieux. Un avancement saisi à la main
+ * remplace le calcul (barres, moyennes des catégories). */
 const pct = i => {
+  const manual = manualPct(i);
+  if (manual !== null && !isNaN(manual)) return Math.max(0, Math.min(100, Math.round(manual)));
   const b = Number(i.baseline), t = Number(i.target), c = Number(i.current_value);
   const desc  = i.direction === 'desc';
   const range = desc ? b - t : t - b;
@@ -66,7 +72,7 @@ const FT = {
 
 const REVUE_EMPTY = { date:'', type:'', titre:'', animateur:'', statut:'', alertes:'0', decisions:'0', participants:'' };
 
-const IND_EMPTY  = { code:'', label:'', category:'', unit:'', baseline:'', target:'', direction:'asc', program:'', current_value:'', status:'', trend:'', last_update:'', responsible:'', methodology:'', milestones:[] };
+const IND_EMPTY  = { code:'', label:'', category:'', unit:'', baseline:'', target:'', direction:'asc', program:'', current_value:'', status:'', trend:'', last_update:'', responsible:'', methodology:'', milestones:[], manual_progress:'' };
 const EVAL_EMPTY = { annee: new Date().getFullYear(), statut:'', evaluateur:'', commanditaire:'', date:'', note_globale:'', description:'', notes:{}, conclusions:'', recommandations:'', alertes:'' };
 
 const lbl = { fontFamily:'DM Sans', fontSize:11, color:T.textDim, display:'block', marginBottom:5 };
@@ -198,6 +204,9 @@ export default function SuiviEval() {
   const [indModal, setIndModal]       = useState(false);
   const [editingInd, setEditingInd]   = useState(null);
   const [savingInd, setSavingInd]     = useState(false);
+  /* Saisie de l'avancement possible : seulement si le module monitoring-evaluation du backend est
+   * activé (sa route répond) ; sinon le champ est masqué, l'avancement reste calculé */
+  const [progressEditable, setProgressEditable] = useState(false);
   const [indForm, setIndForm]         = useState(IND_EMPTY);
 
   const [evalModal, setEvalModal]     = useState(false);
@@ -218,6 +227,7 @@ export default function SuiviEval() {
         seApi.indicators(), seApi.revues(), seApi.evaluations(), seApi.stats(), programsApi.list().catch(() => []),
       ]);
       setInd(ind); setRevues(rev); setEvals(ev); setStats(st); setPrograms(Array.isArray(progs) ? progs : []);
+      seApi.indicatorProgress().then(() => setProgressEditable(true)).catch(() => setProgressEditable(false));
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
@@ -244,7 +254,8 @@ export default function SuiviEval() {
     setIndForm({ code: s(ind.code), label: s(ind.label), category: s(ind.category), unit: s(ind.unit), baseline: s(ind.baseline), target: s(ind.target),
       direction: ind.direction === 'desc' ? 'desc' : 'asc', program: s(ind.program), current_value: s(ind.current_value), status: ind.status || indStatuses[0]?.code || '',
       trend: s(ind.trend), last_update: s(ind.last_update), responsible: s(ind.responsible), methodology: s(ind.methodology),
-      milestones: (ind.milestones || []).map(m => ({ year: String(m.year ?? ''), value: String(m.value ?? '') })) });
+      milestones: (ind.milestones || []).map(m => ({ year: String(m.year ?? ''), value: String(m.value ?? '') })),
+      manual_progress: s(ind.manual_progress) });
     setIndModal(true);
   };
 
@@ -254,6 +265,9 @@ export default function SuiviEval() {
     const ms = f.milestones.filter(m => String(m.year).trim() !== '');
     if (ms.some(m => !/^\d{4}$/.test(String(m.year).trim()))) return setError('Chaque jalon doit avoir une année sur 4 chiffres');
     if (ms.some(m => m.value === '' || isNaN(Number(m.value)))) return setError('Chaque jalon doit avoir une valeur numérique');
+    const manual = String(f.manual_progress ?? '').trim() === '' ? null : Number(f.manual_progress);
+    if (progressEditable && manual !== null && !(Number.isInteger(manual) && manual >= 0 && manual <= 100))
+      return setError('Avancement saisi : nombre entier de 0 à 100 (vide pour le calcul automatique)');
     const num = v => (v === '' || v == null) ? null : Number(v);
     const baseline = num(f.baseline) ?? 0;
     const payload = { code: f.code, label: f.label, category: f.category, unit: f.unit, direction: f.direction,
@@ -264,6 +278,8 @@ export default function SuiviEval() {
     try {
       saved = editingInd ? await seApi.updateIndicator(editingInd.id, payload) : await seApi.createIndicator(payload);
       await seApi.setMilestones(saved.id, ms.map(m => ({ year: String(m.year).trim(), value: Number(m.value) })));
+      if (progressEditable && manual !== (manualPct(editingInd || {}) ?? null))
+        await seApi.setIndicatorProgress(saved.id, manual);
       setInd(await seApi.indicators());
       setIndModal(false);
     } catch (e) {
@@ -541,7 +557,7 @@ export default function SuiviEval() {
                                 <span style={{ color:cat.color, fontWeight:700 }}>{ind.code}</span> · {ind.label.length>42?ind.label.slice(0,42)+'…':ind.label}
                               </span>
                               <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
-                                <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:scoreColor(p) }}>{p}%</span>
+                                <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:scoreColor(p) }} title={manualPct(ind) !== null ? 'Avancement saisi à la main' : 'Avancement calculé'}>{p}%</span>
                                 <div style={{ width:7, height:7, borderRadius:'50%', background:scoreColor(p) }}/>
                               </div>
                             </div>
@@ -627,7 +643,7 @@ export default function SuiviEval() {
                             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
                               <span style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim }}>Base : {fmtVal(ind.baseline, ind.unit, true)}</span>
                               <span style={{ fontFamily:'DM Sans', fontSize:11, fontWeight:700, color:scoreColor(p) }}>
-                                {fmtVal(ind.current_value, ind.unit === '%' ? '%' : '', true)} / {fmtVal(ind.target, ind.unit, true)} · {p}%
+                                {fmtVal(ind.current_value, ind.unit === '%' ? '%' : '', true)} / {fmtVal(ind.target, ind.unit, true)} · {p}%{manualPct(ind) !== null && ' (saisi)'}
                               </span>
                             </div>
                             <ProgressBar value={p} color={scoreColor(p)} height={5}/>
@@ -1015,6 +1031,16 @@ export default function SuiviEval() {
               <Input value={indForm.target} onChange={inf('target')} type="number" placeholder="0"/>
             </div>
           </div>
+          {progressEditable && (
+            <div>
+              <label style={lbl}>Avancement saisi (%)</label>
+              <Input value={indForm.manual_progress} onChange={inf('manual_progress')} type="number" min={0} max={100} step={1}
+                placeholder={`Calculé : ${pct({ ...indForm, manual_progress: null })} %`}/>
+              <div style={{ fontFamily:'DM Sans', fontSize:11, color:T.textDim, marginTop:4 }}>
+                Vide : avancement calculé à partir de la baseline, de la valeur actuelle et de la cible. Renseigné : il remplace le calcul.
+              </div>
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
               <label style={lbl}>Programme {planShort}</label>
